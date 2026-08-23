@@ -444,13 +444,13 @@ Antes de cerrar definitivamente el stack tecnológico se documentará el nivel d
 
 | Tecnología | Aguilar | Alochis | Zupan |
 |---|---|---|---|
-| Python | Pendiente | Intermedio | Inicial |
-| FastAPI | Pendiente | Inicial | Inicial |
-| PostgreSQL | Pendiente | Inicial | Intermedio |
-| React | Pendiente | Inicial | Intermedio |
-| Docker | Pendiente | Inicial | Inicial |
-| OpenClaw | Pendiente | Inicial | Inicial |
-| Integración con LLM | Pendiente | Intermedio | Inicial |
+| Python | Avanzado | Intermedio | Inicial |
+| FastAPI | Intermedio | Inicial | Inicial |
+| PostgreSQL | Intermedio | Inicial | Intermedio |
+| React | Inicial | Inicial | Intermedio |
+| Docker | Inicial | Inicial | Inicial |
+| OpenClaw | Inicial | Inicial | Inicial |
+| Integración con LLM | Intermedio | Intermedio | Inicial |
 
 Se utilizará como referencia la siguiente escala:
 
