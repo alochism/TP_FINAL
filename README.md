@@ -12,7 +12,7 @@ El proyecto parte de la hipótesis de que esta fricción puede provocar que algu
 
 La propuesta busca evaluar si una interfaz conversacional basada en lenguaje natural puede reducir esa fricción, permitiendo registrar y consultar movimientos mediante expresiones cotidianas como:
 
-> "Gasté 18.500 en supermercado con la Visa."
+> "Gasté 18.500 en supermercado desde Mercado Pago."
 
 en lugar de completar manualmente cada uno de los campos de un formulario tradicional.
 
@@ -46,6 +46,17 @@ Las entrevistas buscarán conocer principalmente:
 - si una interacción mediante lenguaje natural les resultaría más práctica que completar formularios tradicionales.
 
 Los resultados obtenidos se utilizarán para validar o ajustar la definición del problema, el usuario objetivo y las funcionalidades priorizadas para el MVP.
+
+Como segunda instancia de validación, se buscará comparar el registro de los mismos movimientos mediante un formulario tradicional y mediante la interfaz conversacional.
+
+La comparación podrá considerar:
+
+- tiempo necesario para completar el registro;
+- cantidad de errores cometidos;
+- cantidad de aclaraciones o correcciones necesarias;
+- percepción de facilidad de uso por parte del usuario.
+
+El objetivo será evaluar no solamente si el sistema interpreta correctamente el lenguaje natural, sino también si la interacción conversacional reduce efectivamente la fricción respecto de una carga tradicional mediante formulario.
 
 **Estado:** validación con usuarios pendiente.
 
@@ -137,7 +148,7 @@ Por ejemplo:
 
 ```text
 Usuario:
-"Gasté $18.500 en supermercado con la Visa"
+"Gasté $18.500 en supermercado con Mercado Pago"
         ↓
 OpenClaw + LLM:
 interpreta la intención y selecciona create_expense(...)
@@ -175,7 +186,7 @@ get_expenses_by_category(...)
 
 Por ejemplo, ante el mensaje:
 
-> "Gasté ayer $18.500 en supermercado con la Visa."
+> "Gasté ayer $18.500 en supermercado con Mercado Pago."
 
 el agente podrá seleccionar `create_expense` y generar una entrada estructurada similar a:
 
@@ -185,7 +196,7 @@ el agente podrá seleccionar `create_expense` y generar una entrada estructurada
   "currency": "ARS",
   "date": "2026-08-20",
   "suggested_category": "supermercado",
-  "account": "Visa",
+  "account": "Mercado Pago",
   "description": "compra en supermercado"
 }
 ```
@@ -238,9 +249,11 @@ Entre las validaciones iniciales se contemplan:
 - cuenta perteneciente a otro usuario → rechazar la operación;
 - categoría dudosa o no identificada → sugerir o solicitar confirmación, sin asumir;
 - información contradictoria → no ejecutar hasta resolver la ambigüedad;
-- operación destructiva, como eliminar un movimiento → requerir confirmación explícita;
+- corrección o anulación de un movimiento → requerir confirmación explícita y conservar trazabilidad de la modificación;
 - usuario no autenticado → rechazar la operación;
 - usuario no autorizado para acceder al recurso → rechazar la operación.
+
+Los movimientos financieros registrados no serán eliminados físicamente como mecanismo habitual de corrección. Cuando el usuario necesite corregir una operación, el sistema priorizará mecanismos de modificación o anulación que permitan conservar la trazabilidad del movimiento original y de los cambios realizados.
 
 Por ejemplo:
 
@@ -324,16 +337,38 @@ Las cuentas utilizadas dentro de la plataforma son **representaciones informativ
 
 La aplicación **no tendrá integración con bancos, billeteras virtuales, tarjetas de crédito, procesadores de pago ni ninguna otra entidad o servicio financiero externo**.
 
-Por ejemplo, un usuario podrá crear cuentas como:
+### Cuentas incluidas en P0
+
+Para mantener controlado el alcance del MVP, P0 trabajará únicamente con **cuentas simples de disponibilidad**, es decir, cuentas cuyo saldo interno representa fondos disponibles registrados por el usuario.
+
+Por ejemplo:
 
 ```text
 Efectivo
 Banco Nación
 Mercado Pago
-Tarjeta Visa
 ```
 
 Estos nombres representan únicamente cuentas dentro del sistema. La plataforma no tendrá acceso a las cuentas reales del usuario, no consultará sus saldos reales ni podrá ejecutar operaciones sobre ellas.
+
+Las tarjetas de crédito quedan fuera del alcance de P0 debido a que requieren un modelo diferente al de una cuenta de disponibilidad: los consumos generan deuda y su posterior pago desde otra cuenta no debe contabilizarse nuevamente como gasto.
+
+Su incorporación podrá evaluarse posteriormente como una funcionalidad adicional.
+
+### Moneda
+
+P0 trabajará exclusivamente con **pesos argentinos (ARS)**.
+
+No se contemplarán inicialmente:
+
+- cuentas en múltiples monedas;
+- conversión entre monedas;
+- tipos de cambio;
+- actualización automática de cotizaciones.
+
+Esta decisión permite mantener el modelo financiero inicial simple y concentrar el desarrollo en el registro, consulta e interpretación de movimientos.
+
+### Cálculo de saldos
 
 Los saldos mostrados por la aplicación serán calculados exclusivamente a partir de los movimientos registrados por el propio usuario.
 
@@ -604,22 +639,37 @@ Por ejemplo:
 "Compré una pizza"
 "Gasté 12.500 con Juan"
 "El martes pagué Internet"
-"Borrá el último gasto"
+"Anulá el último gasto"
 "Me gasté unos pesos en comida"
 "Pagamos 30 entre tres"
 ```
 
-Para cada expresión se evaluará:
+Para cada expresión se definirá previamente un **resultado esperado**, que permitirá evaluar objetivamente el comportamiento del sistema.
+
+Para cada caso se especificará:
+
+- intención esperada;
+- monto esperado;
+- fecha esperada;
+- categoría esperada;
+- cuenta esperada, cuando corresponda;
+- datos que deberían considerarse faltantes;
+- necesidad o no de solicitar una aclaración;
+- acción final esperada del sistema.
+
+Luego se comparará el resultado obtenido con el resultado esperado, evaluando especialmente:
 
 - identificación correcta de la intención;
-- extracción del monto;
-- interpretación de la fecha;
-- identificación o sugerencia de categoría;
-- identificación de la cuenta cuando corresponda;
-- detección de información faltante;
-- detección de ambigüedades;
-- solicitud de confirmación cuando corresponda;
+- extracción e interpretación correcta de los datos;
+- detección de información faltante o ambigua;
+- solicitud de aclaraciones o confirmaciones cuando corresponda;
 - rechazo de operaciones que no puedan ejecutarse de manera segura.
+
+Una de las métricas principales será:
+
+> **Cantidad de operaciones incorrectas ejecutadas sin solicitar aclaración al usuario.**
+
+Se priorizará la seguridad de la interpretación sobre la reducción absoluta de interacciones: ante una ambigüedad relevante será preferible solicitar una aclaración adicional antes que registrar silenciosamente una operación incorrecta.
 
 Además de las pruebas sobre interpretación del lenguaje natural, se realizarán pruebas unitarias y de integración sobre las reglas determinísticas del backend y los principales flujos del sistema.
 
@@ -649,12 +699,12 @@ respuesta
 
 Por ejemplo, ante:
 
-> "Gasté ayer $18.500 en supermercado con la Visa."
+> "Gasté ayer $18.500 en supermercado con la Mercado Pago."
 
 el sistema deberá interpretar la solicitud y el backend deberá comprobar:
 
 1. que el usuario esté autenticado;
-2. que la cuenta `Visa` exista;
+2. que la cuenta `Mercado Pago` exista;
 3. que la cuenta pertenezca al usuario;
 4. que el monto sea válido;
 5. que la categoría sea válida;
@@ -673,6 +723,25 @@ Completar correctamente este circuito será el primer hito técnico del proyecto
 
 ---
 
+## Orden de implementación
+
+El desarrollo se realizará desde el núcleo del sistema hacia las capas externas, priorizando primero los componentes responsables de la lógica de negocio y la persistencia.
+
+El orden previsto será:
+
+1. implementar FastAPI + PostgreSQL sin integración con IA, incluyendo cuentas, gastos, ingresos y consultas básicas;
+2. definir e implementar las tools estructuradas y las reglas de negocio;
+3. integrar OpenClaw y el modelo de lenguaje;
+4. implementar la resolución conversacional de información faltante y ambigüedades;
+5. desarrollar e integrar la interfaz web;
+6. evaluar funcionalidades P1 únicamente cuando el núcleo P0 se encuentre estable.
+
+Este orden permite validar primero los componentes determinísticos del sistema y posteriormente incorporar la capa de interpretación mediante IA.
+
+La interfaz web podrá mantener mecanismos tradicionales de carga mediante formularios como alternativa a la interacción conversacional. De esta manera, la lógica financiera del sistema no dependerá del funcionamiento del LLM y ambas formas de interacción podrán utilizar el mismo backend.
+
+---
+
 ## Estado del proyecto
 
 Proyecto Final de la Tecnicatura en Programación, orientación Desarrollo Web.
@@ -681,15 +750,15 @@ Actualmente el proyecto se encuentra en etapa de definición funcional y técnic
 
 ### Próximos pasos
 
-1. Validar el problema con potenciales usuarios.
-2. Completar la matriz de experiencia tecnológica del equipo.
-3. Seleccionar el proveedor y modelo LLM.
-4. Cerrar definitivamente el stack tecnológico de P0.
-5. Definir los contratos de las tools y comandos estructurados.
-6. Diseñar el modelo inicial de base de datos.
-7. Implementar la prueba técnica mínima end-to-end.
-8. Evaluar los resultados antes de incorporar funcionalidades P1 y P2.
-
+1. Realizar entrevistas con potenciales usuarios y documentar los resultados.
+2. Definir los primeros casos del dataset de pruebas de lenguaje natural junto con sus resultados esperados.
+3. Diseñar el modelo inicial de datos para P0.
+4. Definir los contratos de las tools.
+5. Implementar el núcleo inicial con FastAPI + PostgreSQL.
+6. Realizar la prueba técnica mínima de integración con OpenClaw.
+7. Seleccionar y validar el proveedor y modelo LLM.
+8. Evaluar los resultados obtenidos antes de incorporar funcionalidades P1 y P2.
+   
 ---
 
 ## Licencia
