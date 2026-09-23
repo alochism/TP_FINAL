@@ -96,7 +96,6 @@ Representa un movimiento financiero registrado por el usuario.
 Campos principales:
 
 - `id`: identificador unico.
-- `user_id`: usuario propietario del movimiento.
 - `account_id`: cuenta asociada.
 - `category_id`: categoria asociada.
 - `type`: tipo de movimiento.
