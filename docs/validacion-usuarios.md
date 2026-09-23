@@ -38,6 +38,8 @@ De las 47 personas encuestadas:
 
 Estos resultados muestran que, aunque existe interes por controlar las finanzas personales, mantener el registro de manera constante presenta dificultades.
 
+![Frecuencia de registro de gastos e ingresos](images/frecuencia-registro.png)
+
 
 ### Principales dificultades
 
@@ -48,6 +50,8 @@ Entre las dificultades mencionadas con mayor frecuencia se encontraron:
 - **17 personas (36,2%)** indicaron que posteriormente no recuerdan todos los movimientos realizados.
 
 Los resultados respaldan la existencia de friccion en el proceso de registro, especialmente relacionada con el tiempo transcurrido entre la realizacion de un gasto y su posterior carga.
+
+![Principales dificultades para llevar el registro](images/dificultades-registro.png)
 
 
 ### Uso de multiples cuentas
@@ -72,6 +76,8 @@ Los resultados no muestran un reemplazo absoluto del formulario tradicional, per
 
 Por este motivo se considera conveniente mantener la posibilidad de utilizar ambos mecanismos, utilizando el mismo backend y las mismas reglas de negocio.
 
+![Preferencia entre formulario y lenguaje natural](images/formulario-vs-chat.png)
+
 
 ### Informacion faltante y ambiguedad
 
@@ -88,6 +94,8 @@ Este resultado respalda una de las reglas principales definidas para el sistema:
 > Ante informacion relevante faltante o ambigua, el sistema debe solicitar una aclaracion antes de ejecutar la operacion.
 
 El objetivo sera priorizar la seguridad de la operacion por sobre la automatizacion completa, evitando registrar silenciosamente informacion que pueda haber sido interpretada incorrectamente.
+
+![Comportamiento esperado ante informacion faltante](images/informacion-faltante.png)
 
 
 ### Intencion de uso
@@ -146,4 +154,3 @@ La encuesta permitio obtener evidencia inicial sobre la existencia del problema 
 Los resultados tambien permitieron identificar requisitos que afectan directamente al diseño del sistema, principalmente el manejo de multiples cuentas, la necesidad de solicitar aclaraciones ante informacion incompleta y la importancia de la privacidad y seguridad.
 
 A partir de esta validacion se considera adecuado avanzar con la implementacion del P0 y posteriormente evaluar el funcionamiento de la interfaz conversacional mediante casos de prueba previamente definidos.
-
