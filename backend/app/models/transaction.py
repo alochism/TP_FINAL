@@ -1,10 +1,9 @@
 from datetime import date, datetime
 from decimal import Decimal
 
+from app.database import Base
 from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
-
-from app.database import Base
 
 
 class Transaction(Base):
