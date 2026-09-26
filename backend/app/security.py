@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
+from typing import Annotated
 
 from app.database import get_db
 from app.models import User
@@ -54,8 +55,11 @@ def create_access_token(user_id: int) -> str:
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: Session = Depends(get_db)
+    credentials: Annotated[
+        HTTPAuthorizationCredentials,
+        Depends(bearer_scheme)
+    ],
+    db: Annotated[Session, Depends(get_db)]
 ) -> User:
     token = credentials.credentials
 

@@ -1,8 +1,11 @@
+from typing import Annotated
+
 from app.database import get_db
-from app.models import Account, User
+from app.models import Account, Transaction, User
 from app.schemas.account import AccountCreate, AccountResponse
 from app.security import get_current_user
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 router = APIRouter(
@@ -18,8 +21,8 @@ router = APIRouter(
 )
 def create_account(
     account_data: AccountCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
     allowed_types = {"CASH", "BANK", "WALLET"}
 
@@ -55,8 +58,8 @@ def create_account(
     response_model=list[AccountResponse]
 )
 def get_accounts(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
     return (
         db.query(Account)
@@ -66,3 +69,67 @@ def get_accounts(
         )
         .all()
     )
+
+@router.get("/balance")
+def get_balance(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    account_id: int | None = None
+):
+    accounts_query = (
+        db.query(Account)
+        .filter(
+            Account.user_id == current_user.id,
+            Account.active.is_(True)
+        )
+    )
+
+    if account_id is not None:
+        accounts_query = accounts_query.filter(Account.id == account_id)
+
+    accounts = accounts_query.all()
+
+    if account_id is not None and not accounts:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cuenta no encontrada"
+        )
+
+    account_ids = [account.id for account in accounts]
+
+    initial_balance = sum(
+        account.initial_balance for account in accounts
+    )
+
+    if not account_ids:
+        return {
+            "balance": 0,
+            "currency": "ARS"
+        }
+
+    income = (
+        db.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(
+            Transaction.account_id.in_(account_ids),
+            Transaction.type == "INCOME",
+            Transaction.status == "ACTIVE"
+        )
+        .scalar()
+    )
+
+    expenses = (
+        db.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(
+            Transaction.account_id.in_(account_ids),
+            Transaction.type == "EXPENSE",
+            Transaction.status == "ACTIVE"
+        )
+        .scalar()
+    )
+
+    balance = initial_balance + income - expenses
+
+    return {
+        "balance": balance,
+        "currency": "ARS"
+    }

@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from app.database import get_db
 from app.models import User
 from app.schemas.user import TokenResponse, UserCreate, UserLogin, UserResponse
@@ -18,7 +20,7 @@ router = APIRouter(
 )
 def register_user(
     user_data: UserCreate,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ):
     existing_user = (
         db.query(User)
@@ -50,7 +52,7 @@ def register_user(
 )
 def login_user(
     user_data: UserLogin,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ):
     user = (
         db.query(User)
