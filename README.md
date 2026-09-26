@@ -1,76 +1,58 @@
 # Plataforma Conversacional de Finanzas Personales
 
-Asistente financiero personal que permite registrar y consultar gastos e ingresos mediante lenguaje natural a través de una interfaz conversacional, utilizando **OpenClaw como capa de orquestación del agente de IA** y un backend propio como única autoridad sobre las reglas de negocio, la autorización y la persistencia de la información.
+Asistente financiero personal que permite registrar y consultar gastos e ingresos mediante lenguaje natural a través de una interfaz conversacional.
+
+El sistema utiliza **OpenClaw como capa de orquestación del agente de IA** y un backend propio como única autoridad sobre las reglas de negocio, la autorización y la persistencia de la información.
 
 > **El agente interpreta. El backend decide.**
 
+---
+
 ## Problema
 
-El control cotidiano de las finanzas personales requiere registrar de manera frecuente gastos e ingresos. Sin embargo, muchas de las herramientas disponibles requieren que el usuario complete manualmente formularios indicando monto, fecha, categoría, cuenta y descripción para cada movimiento.
+El control cotidiano de las finanzas personales requiere registrar de manera frecuente gastos e ingresos. Sin embargo, muchas herramientas disponibles requieren completar manualmente formularios indicando monto, fecha, categoría, cuenta y descripción para cada movimiento.
 
-El proyecto parte de la hipótesis de que esta fricción puede provocar que algunas personas registren sus movimientos de manera incompleta, irregular o directamente abandonen el seguimiento de sus finanzas personales.
+Esta fricción puede provocar que las personas registren sus movimientos de manera incompleta, irregular o directamente abandonen el seguimiento de sus finanzas personales.
 
-La propuesta busca evaluar si una interfaz conversacional basada en lenguaje natural puede reducir esa fricción, permitiendo registrar y consultar movimientos mediante expresiones cotidianas como:
+La propuesta busca reducir esa fricción permitiendo registrar y consultar movimientos mediante expresiones cotidianas como:
 
 > "Gasté 18.500 en supermercado desde Mercado Pago."
 
 en lugar de completar manualmente cada uno de los campos de un formulario tradicional.
 
+---
+
 ## Usuario objetivo
 
-El producto está orientado inicialmente a personas que desean llevar un control de sus finanzas personales mediante el registro de sus ingresos y gastos, pero buscan una alternativa más ágil que la carga manual mediante formularios tradicionales.
+El producto está orientado a personas que desean llevar un control de sus finanzas personales mediante el registro de ingresos y gastos, pero buscan una alternativa más ágil que la carga manual tradicional.
 
-Como hipótesis inicial, se consideran potenciales usuarios aquellas personas que actualmente:
+La validación realizada con potenciales usuarios mostró, entre otros resultados:
 
-- utilizan planillas, notas, aplicaciones financieras u otros mecanismos manuales para registrar sus movimientos;
-- realizan el registro de manera irregular;
-- abandonaron anteriormente alguna herramienta de seguimiento financiero por resultar poco práctica o tediosa;
-- o directamente no llevan un registro sistemático de sus finanzas personales.
+- **74,5 %** lleva algún tipo de registro de sus finanzas.
+- **55,3 %** realiza ese registro solo ocasionalmente.
+- **53,2 %** indicó que suele olvidarse de registrar movimientos.
+- **42,6 %** considera tedioso el proceso de registrarlos.
+- **91,5 %** utiliza más de una cuenta, banco o billetera.
+- **74,5 %** prefiere que el sistema consulte antes de registrar una operación cuando falta información sobre la cuenta.
+- **76,6 %** indicó que seguramente o probablemente utilizaría una herramienta de este tipo.
 
-El proyecto propone reducir la cantidad de pasos necesarios para registrar y consultar información financiera mediante una interacción basada en lenguaje natural.
+Los resultados completos se encuentran documentados en:
 
-Esta definición inicial del usuario objetivo será validada mediante entrevistas con potenciales usuarios antes de cerrar definitivamente el alcance funcional del producto.
+[`docs/validacion-usuarios.md`](docs/validacion-usuarios.md)
 
-## Validación del problema
+---
 
-La hipótesis inicial del proyecto será validada mediante entrevistas breves con potenciales usuarios antes de cerrar definitivamente el alcance funcional.
+## Solución propuesta
 
-Las entrevistas buscarán conocer principalmente:
-
-- si actualmente registran sus ingresos y gastos;
-- qué herramientas utilizan para hacerlo (aplicaciones, planillas, notas u otros métodos);
-- con qué frecuencia realizan el registro;
-- qué dificultades encuentran durante la carga de movimientos;
-- si utilizaron anteriormente aplicaciones de finanzas personales y, en caso de haberlas abandonado, cuáles fueron los motivos;
-- qué información consideran importante consultar sobre sus finanzas;
-- si una interacción mediante lenguaje natural les resultaría más práctica que completar formularios tradicionales.
-
-Los resultados obtenidos se utilizarán para validar o ajustar la definición del problema, el usuario objetivo y las funcionalidades priorizadas para el MVP.
-
-Como segunda instancia de validación, se buscará comparar el registro de los mismos movimientos mediante un formulario tradicional y mediante la interfaz conversacional.
-
-La comparación podrá considerar:
-
-- tiempo necesario para completar el registro;
-- cantidad de errores cometidos;
-- cantidad de aclaraciones o correcciones necesarias;
-- percepción de facilidad de uso por parte del usuario.
-
-El objetivo será evaluar no solamente si el sistema interpreta correctamente el lenguaje natural, sino también si la interacción conversacional reduce efectivamente la fricción respecto de una carga tradicional mediante formulario.
-
-**Estado:** validación con usuarios pendiente.
-
-## Idea general
-
-En lugar de completar manualmente un formulario para registrar cada movimiento, el usuario podrá interactuar con el sistema mediante lenguaje natural.
+La aplicación permitirá al usuario registrar y consultar información financiera mediante lenguaje natural.
 
 Por ejemplo:
 
 > "Gasté 12.500 en una pizza con Juan."
 
-La interacción será procesada por **OpenClaw**, utilizado como capa de orquestación del agente conversacional. OpenClaw gestionará la interacción con el modelo de lenguaje y permitirá que el agente interprete el mensaje y genere una solicitud estructurada para las operaciones disponibles en el backend.
+La capa conversacional interpretará el mensaje y determinará la intención del usuario y los datos disponibles.
 
-Una posible interpretación del mensaje anterior sería:
+Una interpretación posible sería:
 
 ```json
 {
@@ -84,30 +66,36 @@ Una posible interpretación del mensaje anterior sería:
 }
 ```
 
-Esta interpretación no implica que la operación pueda ejecutarse.
+Esta interpretación **no implica que la operación pueda ejecutarse automáticamente**.
 
-El backend recibe la solicitud estructurada y aplica las validaciones de esquema, autenticación, autorización y reglas de negocio correspondientes.
+El backend recibe la solicitud estructurada y aplica las validaciones de autenticación, autorización, integridad y reglas de negocio correspondientes.
 
-Si falta información obligatoria, el sistema no debe asumirla. Por ejemplo, si no pudo determinar desde qué cuenta se realizó el gasto:
+Si falta información obligatoria, el sistema no debe inventarla.
+
+Por ejemplo:
 
 > "Entendí que gastaste $12.500 en alimentación. ¿Desde qué cuenta lo pagaste?"
 
-Una vez obtenida y validada toda la información necesaria, el backend ejecuta la operación y la persiste en PostgreSQL.
+Una vez obtenida y validada toda la información necesaria, el backend podrá ejecutar la operación y persistirla en PostgreSQL.
 
-El flujo general será:
+---
+
+## Arquitectura general
+
+El sistema utiliza una arquitectura modular con separación entre la capa conversacional, la lógica de negocio y la persistencia.
 
 ```text
 Usuario
    ↓
-Interfaz web
+Interfaz Web
    ↓
 OpenClaw
    ↓
 Agente / LLM
    ↓
-Tool / comando estructurado
+Tool / solicitud estructurada
    ↓
-Backend (FastAPI)
+Backend FastAPI
    ↓
 Validación + autorización + reglas de negocio
    ↓
@@ -116,65 +104,49 @@ PostgreSQL
 Respuesta al usuario
 ```
 
-OpenClaw y el modelo de lenguaje forman parte de la capa de interpretación y orquestación. No acceden directamente a PostgreSQL ni contienen las reglas financieras del sistema.
+### Responsabilidades principales
 
-> **El agente interpreta. El backend decide.**
+**Interfaz Web**
 
-## Rol de OpenClaw
+Proporciona el canal de interacción con el usuario.
 
-**OpenClaw** será utilizado como capa de orquestación del agente conversacional. Su función será gestionar la interacción entre el usuario, el modelo de lenguaje y las herramientas (*tools*) disponibles para comunicarse con el backend.
+**OpenClaw**
 
-Dentro de la arquitectura del proyecto, OpenClaw será responsable de:
+Gestiona la orquestación del agente conversacional, el contexto de la conversación y la invocación de las tools disponibles.
 
-- gestionar la interacción con el modelo de lenguaje;
-- mantener el contexto necesario de la conversación;
-- permitir que el agente determine qué herramienta debe utilizar según la intención del usuario;
-- invocar las *tools* disponibles para solicitar operaciones al backend;
-- facilitar la incorporación futura de otros canales conversacionales, como WhatsApp o Telegram.
+**Agente / LLM**
 
-Las *tools* representarán operaciones controladas que el agente puede solicitar, por ejemplo:
+Interpreta el lenguaje natural, identifica la intención y extrae los parámetros necesarios para solicitar una operación.
 
-```text
-create_expense(...)
-create_income(...)
-get_balance(...)
-get_transactions(...)
-get_expenses_by_category(...)
-```
+**FastAPI**
 
-La ejecución real de estas operaciones estará implementada en el backend. OpenClaw no tendrá acceso directo a PostgreSQL ni será responsable de validar las reglas financieras del sistema.
+Constituye el backend de la aplicación y es responsable de:
 
-Por ejemplo:
+- autenticación;
+- autorización;
+- validaciones;
+- reglas de negocio;
+- acceso a los datos;
+- ejecución de operaciones financieras;
+- aislamiento de información entre usuarios.
 
-```text
-Usuario:
-"Gasté $18.500 en supermercado con Mercado Pago"
-        ↓
-OpenClaw + LLM:
-interpreta la intención y selecciona create_expense(...)
-        ↓
-Backend:
-valida usuario, cuenta, monto, categoría y reglas de negocio
-        ↓
-PostgreSQL:
-persiste el movimiento
-        ↓
-Backend:
-devuelve el resultado
-        ↓
-OpenClaw:
-genera la respuesta conversacional al usuario
-```
+**PostgreSQL**
 
-Esta separación busca desacoplar la capa conversacional de la lógica financiera. De esta manera, OpenClaw se ocupa de la orquestación del agente, mientras que el backend mantiene el control sobre las operaciones y la consistencia de los datos.
+Constituye la fuente persistente de verdad del sistema.
 
-## Comandos estructurados y tools
+OpenClaw y el LLM **no acceden directamente a PostgreSQL ni contienen las reglas financieras del sistema**.
+
+La arquitectura completa se encuentra documentada en:
+
+[`docs/arquitectura.md`](docs/arquitectura.md)
+
+---
+
+## Tools y comunicación con el backend
 
 La comunicación entre la capa conversacional y el backend se realizará mediante **tools con entradas estructuradas y previamente definidas**.
 
-El agente gestionado mediante OpenClaw podrá interpretar la intención expresada por el usuario y seleccionar la tool correspondiente, pero no podrá ejecutar operaciones financieras directamente sobre la base de datos.
-
-Para el alcance P0 se contemplan inicialmente tools como:
+Para el alcance P0 se contemplan inicialmente:
 
 ```text
 create_expense(...)
@@ -184,451 +156,235 @@ get_transactions(...)
 get_expenses_by_category(...)
 ```
 
-Por ejemplo, ante el mensaje:
-
-> "Gasté ayer $18.500 en supermercado con Mercado Pago."
-
-el agente podrá seleccionar `create_expense` y generar una entrada estructurada similar a:
-
-```json
-{
-  "amount": 18500,
-  "currency": "ARS",
-  "date": "2026-08-20",
-  "suggested_category": "supermercado",
-  "account": "Mercado Pago",
-  "description": "compra en supermercado"
-}
-```
-
-Esta estructura representa una **solicitud de operación**, no una operación ya autorizada.
-
-El backend será responsable de validar, entre otras cosas:
-
-- que el usuario esté autenticado;
-- que los campos obligatorios estén presentes;
-- que los tipos y formatos recibidos sean válidos;
-- que el monto sea válido;
-- que la cuenta indicada exista y pertenezca al usuario autenticado;
-- que la categoría exista o pueda resolverse de forma segura;
-- que la operación solicitada esté permitida;
-- y que se cumplan las reglas de negocio correspondientes.
-
-Si falta información necesaria o existe una ambigüedad que impide ejecutar la operación de forma segura, el backend no realizará ninguna modificación y la capa conversacional deberá solicitar la información faltante al usuario.
+El agente podrá seleccionar una tool y proporcionar los parámetros interpretados, pero la decisión de ejecutar una operación corresponderá siempre al backend.
 
 Por ejemplo:
-
-```text
-Usuario:
-"Gasté 20.000 ayer"
-
-Agente:
-detecta monto y fecha, pero no puede determinar la cuenta
-
-Backend:
-indica que falta un dato obligatorio
-
-Sistema:
-"¿Desde qué cuenta realizaste el gasto?"
-```
-
-De esta forma, las salidas generadas por el modelo funcionan como datos de entrada para el sistema, pero nunca reemplazan las validaciones determinísticas ni las reglas de negocio implementadas en el backend.
-
-## Validación: no solo `confidence`
-
-El nivel de confianza (`confidence`) generado durante la interpretación del mensaje podrá utilizarse como una señal auxiliar, pero no determinará por sí solo si una operación puede ejecutarse.
-
-La decisión final dependerá siempre de reglas determinísticas implementadas en el backend.
-
-Entre las validaciones iniciales se contemplan:
-
-- monto obligatorio ausente → solicitar al usuario;
-- monto inválido → rechazar la operación;
-- cuenta obligatoria ausente → solicitar al usuario;
-- cuenta inexistente → solicitar corrección;
-- cuenta perteneciente a otro usuario → rechazar la operación;
-- categoría dudosa o no identificada → sugerir o solicitar confirmación, sin asumir;
-- información contradictoria → no ejecutar hasta resolver la ambigüedad;
-- corrección o anulación de un movimiento → requerir confirmación explícita y conservar trazabilidad de la modificación;
-- usuario no autenticado → rechazar la operación;
-- usuario no autorizado para acceder al recurso → rechazar la operación.
-
-Los movimientos financieros registrados no serán eliminados físicamente como mecanismo habitual de corrección. Cuando el usuario necesite corregir una operación, el sistema priorizará mecanismos de modificación o anulación que permitan conservar la trazabilidad del movimiento original y de los cambios realizados.
-
-Por ejemplo:
-
-> "Gasté 15.000 en el supermercado."
-
-Aunque el agente tenga un nivel alto de confianza respecto del monto y la categoría, si el sistema requiere conocer desde qué cuenta se realizó el gasto y esa información no está disponible, la operación no será registrada hasta obtenerla.
-
-Del mismo modo, un valor bajo de `confidence` no implica automáticamente rechazar una operación. El backend evaluará qué información concreta falta o resulta ambigua y solicitará al usuario únicamente las aclaraciones necesarias.
-
-Las operaciones de consulta no requerirán una confirmación adicional, pero estarán sujetas a los mismos mecanismos de autenticación y autorización que las operaciones de escritura.
-
-De esta forma, `confidence` funciona como información complementaria de la interpretación del agente, mientras que la seguridad y consistencia del sistema dependen de reglas explícitas y verificables implementadas en el backend.
-
-## Alcance del MVP (P0 / P1 / P2)
-
-El desarrollo se organizará por niveles de prioridad para garantizar que el núcleo del producto pueda completarse, probarse y desplegarse antes de incorporar funcionalidades adicionales.
-
-### P0 — Núcleo obligatorio
-
-Corresponde al alcance mínimo que deberá estar completamente funcional para la entrega y defensa del proyecto.
-
-- Registro e inicio de sesión de usuarios.
-- Gestión básica de cuentas.
-- Registro de gastos mediante lenguaje natural.
-- Registro de ingresos mediante lenguaje natural.
-- Consulta de saldo de las cuentas registradas.
-- Consulta de movimientos.
-- Consulta de gastos por categoría.
-- Detección de información obligatoria faltante.
-- Interacción conversacional para completar información ambigua.
-- Confirmación explícita cuando corresponda.
-- Validación de todas las operaciones mediante reglas determinísticas del backend.
-- Auditoría básica de las interacciones y operaciones.
-- Interfaz web como único canal de interacción del MVP.
-- Integración de OpenClaw como capa de orquestación del agente conversacional.
-
-El objetivo de P0 es demostrar de punta a punta el circuito principal del producto:
 
 ```text
 Usuario
-   ↓
-Interfaz web
-   ↓
+"Gasté $18.500 en supermercado con Mercado Pago"
+        ↓
 OpenClaw + LLM
-   ↓
-Tool / solicitud estructurada
-   ↓
+interpreta la intención
+        ↓
+create_expense(...)
+        ↓
 Backend
-   ↓
-Validación + reglas de negocio
-   ↓
+valida usuario, cuenta, monto, categoría y reglas
+        ↓
 PostgreSQL
-   ↓
+persiste el movimiento
+        ↓
 Respuesta al usuario
 ```
 
-### P1 — Ampliaciones
+Los contratos y responsabilidades de cada tool están documentados en:
 
-Una vez completado y validado P0, podrán incorporarse:
+[`docs/tools.md`](docs/tools.md)
 
-- transferencias internas entre cuentas registradas en la aplicación;
-- presupuestos por categoría;
-- movimientos recurrentes;
-- mecanismos simples de notificación.
+---
 
-### P2 — Funcionalidades opcionales
+## Manejo de información faltante y ambigüedades
 
-Si el tiempo y la estabilidad del proyecto lo permiten, podrán evaluarse:
-
-- alertas y reportes avanzados;
-- integración con canales adicionales como WhatsApp o Telegram;
-- dashboard con visualizaciones y estadísticas más completas;
-- automatizaciones adicionales;
-- incorporación de infraestructura complementaria cuando exista una necesidad técnica concreta.
-
-Las funcionalidades P1 y P2 no condicionan el funcionamiento del núcleo del producto ni serán necesarias para considerar completo el MVP.
-
-## Alcance de las cuentas y operaciones financieras
-
-Las cuentas utilizadas dentro de la plataforma son **representaciones informativas creadas por el usuario** para organizar y registrar sus finanzas personales.
-
-La aplicación **no tendrá integración con bancos, billeteras virtuales, tarjetas de crédito, procesadores de pago ni ninguna otra entidad o servicio financiero externo**.
-
-### Cuentas incluidas en P0
-
-Para mantener controlado el alcance del MVP, P0 trabajará únicamente con **cuentas simples de disponibilidad**, es decir, cuentas cuyo saldo interno representa fondos disponibles registrados por el usuario.
+El modelo de lenguaje puede interpretar la intención del usuario, pero no debe inventar información necesaria para ejecutar una operación.
 
 Por ejemplo:
 
-```text
-Efectivo
-Banco Nación
-Mercado Pago
-```
+> "Gasté 20.000 ayer."
 
-Estos nombres representan únicamente cuentas dentro del sistema. La plataforma no tendrá acceso a las cuentas reales del usuario, no consultará sus saldos reales ni podrá ejecutar operaciones sobre ellas.
+Si la cuenta es un dato obligatorio y no puede determinarse de forma segura, el sistema deberá solicitarla antes de registrar el movimiento.
 
-Las tarjetas de crédito quedan fuera del alcance de P0 debido a que requieren un modelo diferente al de una cuenta de disponibilidad: los consumos generan deuda y su posterior pago desde otra cuenta no debe contabilizarse nuevamente como gasto.
+La decisión final dependerá de reglas determinísticas implementadas en el backend.
 
-Su incorporación podrá evaluarse posteriormente como una funcionalidad adicional.
+Entre las validaciones previstas se encuentran:
+
+- monto obligatorio ausente → solicitar información;
+- monto inválido → rechazar;
+- cuenta obligatoria ausente → solicitar información;
+- cuenta inexistente → solicitar corrección;
+- cuenta perteneciente a otro usuario → rechazar;
+- categoría no identificada de forma segura → solicitar aclaración;
+- información contradictoria → no ejecutar;
+- usuario no autenticado → rechazar;
+- usuario no autorizado → rechazar.
+
+Las operaciones de consulta estarán sujetas a los mismos mecanismos de autenticación y autorización que las operaciones de escritura.
+
+---
+
+## Alcance del MVP
+
+El desarrollo se organiza por prioridades **P0, P1 y P2**.
+
+### P0 — Núcleo obligatorio
+
+Incluye las funcionalidades necesarias para demostrar el funcionamiento completo del producto:
+
+- registro e inicio de sesión;
+- gestión básica de cuentas;
+- categorías predefinidas;
+- registro de gastos;
+- registro de ingresos;
+- consulta de saldo;
+- consulta de movimientos;
+- consulta de gastos por categoría;
+- interpretación de lenguaje natural;
+- detección de información faltante;
+- resolución conversacional de ambigüedades;
+- validaciones determinísticas en el backend;
+- aislamiento de información entre usuarios;
+- interfaz web;
+- integración con OpenClaw y un LLM.
+
+### P1 — Ampliaciones
+
+Una vez completado y estabilizado P0 podrán evaluarse:
+
+- transferencias internas;
+- categorías personalizadas;
+- movimientos recurrentes;
+- presupuestos;
+- soporte para múltiples monedas;
+- tarjetas de crédito;
+- consultas y reportes adicionales.
+
+### P2 — Funcionalidades opcionales
+
+Como posibles ampliaciones futuras podrán evaluarse:
+
+- integraciones con instituciones o servicios financieros;
+- análisis financiero avanzado;
+- canales conversacionales adicionales;
+- automatizaciones adicionales.
+
+La definición completa de los módulos y sus prioridades se encuentra en:
+
+[`docs/modulos.md`](docs/modulos.md)
+
+---
+
+## Alcance financiero
+
+Las cuentas utilizadas dentro de la plataforma son **representaciones informativas creadas por el usuario**.
+
+La aplicación no realizará operaciones reales sobre:
+
+- cuentas bancarias;
+- billeteras virtuales;
+- tarjetas;
+- procesadores de pago;
+- servicios financieros externos.
+
+### Cuentas P0
+
+El MVP trabajará inicialmente con:
+
+- efectivo (`CASH`);
+- cuentas bancarias (`BANK`);
+- billeteras virtuales (`WALLET`).
 
 ### Moneda
 
 P0 trabajará exclusivamente con **pesos argentinos (ARS)**.
 
-No se contemplarán inicialmente:
+El soporte para múltiples monedas queda fuera del alcance inicial.
 
-- cuentas en múltiples monedas;
-- conversión entre monedas;
-- tipos de cambio;
-- actualización automática de cotizaciones.
+### Saldos
 
-Esta decisión permite mantener el modelo financiero inicial simple y concentrar el desarrollo en el registro, consulta e interpretación de movimientos.
-
-### Cálculo de saldos
-
-Los saldos mostrados por la aplicación serán calculados exclusivamente a partir de los movimientos registrados por el propio usuario.
-
-Por ejemplo:
+Los saldos serán calculados a partir del saldo inicial registrado por el usuario y sus movimientos activos:
 
 ```text
-Cuenta: Banco Nación
-
-Saldo inicial registrado:      $500.000
-Ingreso registrado:           +$100.000
-Gasto registrado:             -$ 40.000
-                              ---------
-Saldo en la aplicación:        $560.000
+Saldo =
+saldo inicial
++ ingresos activos
+- gastos activos
 ```
 
-El saldo de `$560.000` representa el saldo calculado por la plataforma y no implica que el sistema haya consultado o verificado el saldo existente en la cuenta bancaria real.
-
-### Transferencias internas
-
-De la misma manera, una transferencia entre cuentas representa únicamente un **movimiento interno dentro del registro financiero de la aplicación**.
-
-Por ejemplo:
-
-> "Pasé $50.000 del Banco Nación a Mercado Pago."
-
-El sistema podrá registrar:
-
-```text
-Banco Nación       -$50.000
-Mercado Pago       +$50.000
-```
-
-pero **no realizará ninguna transferencia real de dinero** entre ambas cuentas.
-
-La operación solamente modifica los registros y saldos internos de la plataforma.
-
-Las transferencias deberán ejecutarse de forma atómica en el backend: el débito de una cuenta y el crédito de la otra deberán registrarse como una única operación lógica, de manera que ambos movimientos se completen correctamente o ninguno sea persistido.
-
-Por lo tanto, el producto funciona como una herramienta de **registro, organización y consulta de información financiera personal**, y no como una plataforma bancaria, billetera virtual ni medio de pago.
-
-
-## Stack tecnológico
-
-El stack tecnológico se define buscando mantener una arquitectura simple para el MVP, incorporando únicamente componentes que tengan una responsabilidad concreta dentro del sistema.
-
-| Capa | Tecnología | Responsabilidad dentro del proyecto |
-|---|---|---|
-| Orquestación del agente | OpenClaw | Gestiona el agente conversacional, su interacción con el LLM, el contexto de conversación y la invocación de tools que se comunican con el backend. |
-| Backend | Python + FastAPI | Implementa la API, validaciones, autenticación/autorización, reglas de negocio y operaciones financieras del sistema. |
-| Validación de datos | Pydantic | Define y valida los esquemas de entrada y salida utilizados por FastAPI. |
-| Persistencia | PostgreSQL | Almacena usuarios, cuentas, movimientos, estado conversacional y auditoría, manteniendo integridad y consistencia transaccional. |
-| ORM | SQLAlchemy | Gestiona el acceso del backend a PostgreSQL mediante modelos y operaciones de persistencia. |
-| Migraciones | Alembic | Permite versionar y aplicar de forma controlada los cambios en el esquema de la base de datos. |
-| Inteligencia artificial | API de LLM (proveedor a definir) | Interpreta lenguaje natural y permite al agente determinar la intención del usuario y los parámetros necesarios para utilizar las tools disponibles. |
-| Frontend | React | Proporciona la interfaz web conversacional y las pantallas necesarias para la gestión y consulta de la información financiera. |
-| Testing | pytest | Permite implementar pruebas unitarias y de integración sobre el backend y sus reglas de negocio. |
-| Contenedores | Docker | Permite ejecutar los componentes del sistema en entornos reproducibles y simplificar su despliegue. |
-| Despliegue | A definir | Al menos uno de los componentes principales será desplegado en un servicio online, de acuerdo con los requisitos del Trabajo Final. |
-
-### Decisiones de simplificación para P0
-
-Para el MVP se evitará incorporar infraestructura adicional que no sea necesaria para demostrar el funcionamiento del producto.
-
-El estado conversacional se persistirá inicialmente en PostgreSQL, evitando incorporar Redis únicamente para esta función.
-
-De la misma manera, P0 no requerirá:
-
-- Redis;
-- brokers o colas de mensajes;
-- microservicios;
-- múltiples canales de mensajería;
-- sistemas complejos de procesamiento en segundo plano;
-- integraciones con entidades financieras.
-
-Las funcionalidades que posteriormente requieran tareas programadas, como los movimientos recurrentes de P1, comenzarán utilizando un mecanismo simple de scheduling. Solo se incorporará infraestructura adicional si aparece una necesidad técnica concreta que lo justifique.
-
-### Separación de responsabilidades
-
-La arquitectura mantendrá separadas las responsabilidades principales:
-
-```text
-React
-  ↓
-OpenClaw
-  ↓
-LLM / Agente
-  ↓
-Tools
-  ↓
-FastAPI
-  ↓
-Reglas de negocio
-  ↓
-PostgreSQL
-```
-
-OpenClaw y el LLM pertenecen a la capa conversacional y de interpretación.
-
-FastAPI contiene la lógica de aplicación y las reglas financieras.
-
-PostgreSQL constituye la fuente persistente de verdad del sistema.
-
-Esta separación permite que los componentes de IA puedan modificarse o reemplazarse sin trasladar la lógica financiera fuera del backend.
-
-## Experiencia previa del equipo
-
-Antes de cerrar definitivamente el stack tecnológico se documentará el nivel de experiencia actual de los tres integrantes con las principales tecnologías involucradas en el proyecto.
-
-| Tecnología | Aguilar | Alochis | Zupan |
-|---|---|---|---|
-| Python | Avanzado | Intermedio | Inicial |
-| FastAPI | Intermedio | Inicial | Inicial |
-| PostgreSQL | Intermedio | Inicial | Intermedio |
-| React | Inicial | Inicial | Intermedio |
-| Docker | Inicial | Inicial | Inicial |
-| OpenClaw | Inicial | Inicial | Inicial |
-| Integración con LLM | Intermedio | Intermedio | Inicial |
-
-Se utilizará como referencia la siguiente escala:
-
-- **Inicial:** conocimientos introductorios o poca experiencia práctica.
-- **Intermedio:** experiencia suficiente para desarrollar funcionalidades utilizando documentación y apoyo puntual.
-- **Avanzado:** experiencia suficiente para trabajar de forma autónoma y resolver problemas habituales de la tecnología.
-
-Esta evaluación permitirá verificar que el alcance y el stack elegidos sean compatibles con los conocimientos del equipo y que el proyecto no dependa del aprendizaje simultáneo de demasiadas tecnologías nuevas.
+El saldo mostrado por la aplicación representa exclusivamente la información registrada dentro del sistema y no el saldo real existente en una institución financiera.
 
 ---
 
-## Proveedor de LLM
+## Modelo de datos
 
-**Estado: decisión pendiente.**
+El modelo inicial está compuesto por cuatro entidades principales:
 
-Antes de implementar la integración definitiva se seleccionará el proveedor y modelo de lenguaje que utilizará OpenClaw.
+```text
+User
+  │
+  └──< Account
+          │
+          └──< Transaction >── Category
+```
 
-La elección tendrá en cuenta:
+Las relaciones principales son:
 
-- compatibilidad con OpenClaw;
-- soporte para tool/function calling y salidas estructuradas;
-- costo por uso;
-- límites de solicitudes;
-- latencia;
-- disponibilidad del servicio;
-- manejo de timeouts y errores;
-- privacidad de la información enviada;
-- facilidad para reemplazar el proveedor si fuera necesario.
+- un usuario puede poseer múltiples cuentas;
+- cada cuenta pertenece a un único usuario;
+- una cuenta puede registrar múltiples movimientos;
+- cada movimiento pertenece a una cuenta;
+- una categoría puede clasificar múltiples movimientos;
+- cada movimiento posee una categoría.
 
-La lógica financiera no dependerá directamente del proveedor seleccionado. El modelo de lenguaje será utilizado para interpretar las solicitudes del usuario y seleccionar las tools correspondientes, mientras que las validaciones y operaciones financieras permanecerán en el backend.
+La pertenencia de una transacción a un usuario se determina mediante su cuenta:
+
+```text
+Transaction → Account → User
+```
+
+El diseño completo, tipos de datos, claves primarias, claves foráneas, índices y diagrama entidad-relación se encuentran en:
+
+[`docs/modelo-datos.md`](docs/modelo-datos.md)
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología | Responsabilidad |
+|---|---|---|
+| Frontend | React | Interfaz web |
+| Orquestación | OpenClaw | Gestión del agente y ejecución de tools |
+| Inteligencia artificial | API de LLM | Interpretación de lenguaje natural |
+| Backend | Python + FastAPI | API y reglas de negocio |
+| Validación | Pydantic | Validación de entradas y salidas |
+| ORM | SQLAlchemy | Acceso a datos |
+| Base de datos | PostgreSQL | Persistencia |
+| Migraciones | Alembic | Versionado del esquema |
+| Autenticación | JWT | Identificación de usuarios |
+| Testing | pytest | Pruebas unitarias y de integración |
+| Contenedores | Docker | Entorno reproducible |
+| Control de versiones | Git + GitHub | Versionado y colaboración |
+
+El proveedor de LLM y el servicio de despliegue se definirán durante la implementación en función de compatibilidad, costo y requisitos técnicos.
 
 ---
 
 ## Seguridad y privacidad
 
-El sistema manejará información personal y financiera registrada por los usuarios, por lo que se establecen los siguientes criterios iniciales de seguridad y privacidad.
+Debido a que el sistema manejará información financiera personal, se establecen los siguientes criterios:
 
-### Autenticación y autorización
-
-Todas las operaciones, tanto de lectura como de escritura, requerirán un usuario autenticado.
-
-Las contraseñas serán almacenadas utilizando mecanismos seguros de hashing y nunca en texto plano.
-
-Las credenciales, tokens y API keys de servicios externos no serán incluidas en el repositorio y se gestionarán mediante variables de entorno.
-
-### Separación de datos entre usuarios
-
-Las cuentas, movimientos y demás recursos financieros estarán asociados al usuario autenticado.
-
-El identificador utilizado para determinar a qué usuario pertenece una operación será obtenido del contexto de autenticación del backend y no de información proporcionada por el LLM.
-
-El backend verificará la pertenencia de cada recurso antes de permitir su consulta o modificación.
-
-### Información enviada al LLM
-
-Se aplicará un criterio de minimización de datos: únicamente se enviará al proveedor del modelo la información necesaria para interpretar la solicitud actual.
-
-No se enviarán contraseñas, tokens, API keys ni credenciales del usuario.
-
-Cuando una operación requiera contexto adicional, se enviará solamente la información estrictamente necesaria para resolver la interacción.
-
-### Mensajes originales
-
-Durante el desarrollo del proyecto los mensajes originales podrán conservarse como parte de la auditoría y del proceso de evaluación del sistema.
-
-La política definitiva de conservación deberá considerar la utilidad de esta información para auditoría y pruebas frente a los requisitos de privacidad.
-
-### Logs
-
-Los logs técnicos no deberán almacenar:
-
-- contraseñas;
-- tokens de autenticación;
-- API keys;
-- credenciales;
-- información sensible que no resulte necesaria para diagnosticar el funcionamiento del sistema.
-
-La información necesaria para auditoría se almacenará de forma separada del logging técnico general.
-
-### Fallas del servicio de IA
-
-Ante un timeout, una respuesta inválida o la indisponibilidad del proveedor de IA:
-
-- la operación solicitada no será ejecutada;
-- no se realizará ninguna modificación sobre los datos financieros;
-- el usuario recibirá una respuesta de error controlada;
-- el sistema mantendrá la consistencia de la información existente.
-
----
-
-## Auditoría
-
-El sistema mantendrá un registro básico de las interacciones relevantes con el objetivo de proporcionar trazabilidad sobre las decisiones tomadas durante el procesamiento de una solicitud.
-
-Para cada interacción podrán registrarse:
-
-- usuario;
-- fecha y hora;
-- mensaje original;
-- interpretación generada por el agente;
-- tool seleccionada;
-- parámetros interpretados;
-- información faltante detectada;
-- confirmaciones solicitadas;
-- operación finalmente ejecutada;
-- resultado de la operación.
-
-Por ejemplo:
-
-```text
-Mensaje:
-"Gasté 12.500 en una pizza"
-
-Interpretación:
-GASTO / $12.500 / alimentación
-
-Dato faltante:
-cuenta
-
-Sistema:
-"¿Desde qué cuenta lo pagaste?"
-
-Usuario:
-"Mercado Pago"
-
-Operación final:
-Gasto $12.500
-Cuenta: Mercado Pago
-Categoría: Alimentación
-
-Resultado:
-CONFIRMADO
-```
-
-Esta información permitirá demostrar durante la defensa el recorrido completo desde la interpretación realizada por el agente hasta la decisión final tomada por el backend.
+- todas las operaciones requieren autenticación;
+- las contraseñas se almacenan mediante hashing;
+- las credenciales y API keys se gestionan mediante variables de entorno;
+- el backend determina la identidad del usuario autenticado;
+- el LLM nunca determina qué usuario es propietario de una operación;
+- cada recurso es validado contra el usuario autenticado;
+- OpenClaw y el LLM no acceden directamente a PostgreSQL;
+- se minimiza la información enviada al proveedor del LLM;
+- los logs no deben almacenar contraseñas, tokens ni credenciales;
+- ante una falla del servicio de IA no debe ejecutarse ninguna modificación financiera.
 
 ---
 
 ## Estrategia de pruebas
 
-La interpretación de lenguaje natural no será evaluada únicamente mediante ejemplos preparados para la demostración.
+La interpretación del lenguaje natural será evaluada mediante un conjunto de aproximadamente **50 a 100 expresiones representativas**.
 
-Se construirá progresivamente un conjunto de aproximadamente **50 a 100 expresiones representativas**, incluyendo casos simples, ambiguos, incompletos y expresados de diferentes maneras.
+Se incluirán casos:
+
+- simples;
+- ambiguos;
+- incompletos;
+- expresados de diferentes maneras.
 
 Por ejemplo:
 
@@ -644,121 +400,179 @@ Por ejemplo:
 "Pagamos 30 entre tres"
 ```
 
-Para cada expresión se definirá previamente un **resultado esperado**, que permitirá evaluar objetivamente el comportamiento del sistema.
+Para cada expresión se definirá previamente un resultado esperado:
 
-Para cada caso se especificará:
-
-- intención esperada;
-- monto esperado;
-- fecha esperada;
-- categoría esperada;
-- cuenta esperada, cuando corresponda;
-- datos que deberían considerarse faltantes;
-- necesidad o no de solicitar una aclaración;
-- acción final esperada del sistema.
-
-Luego se comparará el resultado obtenido con el resultado esperado, evaluando especialmente:
-
-- identificación correcta de la intención;
-- extracción e interpretación correcta de los datos;
-- detección de información faltante o ambigua;
-- solicitud de aclaraciones o confirmaciones cuando corresponda;
-- rechazo de operaciones que no puedan ejecutarse de manera segura.
+- intención;
+- monto;
+- fecha;
+- categoría;
+- cuenta;
+- información faltante;
+- necesidad de aclaración;
+- acción final esperada.
 
 Una de las métricas principales será:
 
 > **Cantidad de operaciones incorrectas ejecutadas sin solicitar aclaración al usuario.**
 
-Se priorizará la seguridad de la interpretación sobre la reducción absoluta de interacciones: ante una ambigüedad relevante será preferible solicitar una aclaración adicional antes que registrar silenciosamente una operación incorrecta.
-
-Además de las pruebas sobre interpretación del lenguaje natural, se realizarán pruebas unitarias y de integración sobre las reglas determinísticas del backend y los principales flujos del sistema.
+Además se realizarán pruebas unitarias y de integración sobre las reglas determinísticas del backend.
 
 ---
 
-## Prueba técnica mínima
-
-Antes de incorporar funcionalidades adicionales se implementará una prueba técnica end-to-end que permita validar la arquitectura principal del proyecto.
-
-El circuito mínimo será:
+## Estructura del repositorio
 
 ```text
-mensaje
+TP_FINAL/
+├── backend/
+│   ├── app/
+│   ├── alembic/
+│   └── requirements.txt
+│
+├── database/
+│   └── README.md
+│
+├── docs/
+│   ├── images/
+│   ├── arquitectura.md
+│   ├── modelo-datos.md
+│   ├── modulos.md
+│   ├── tools.md
+│   └── validacion-usuarios.md
+│
+├── frontend/
+│
+└── README.md
+```
+
+### `/backend`
+
+Contiene el backend de la aplicación y el versionado del esquema mediante Alembic.
+
+### `/frontend`
+
+Reservado para la interfaz web desarrollada con React.
+
+### `/database`
+
+Contiene la documentación relativa a la organización y versionado de la base de datos.
+
+El diseño se documenta en `docs/modelo-datos.md` y las migraciones se mantienen mediante Alembic dentro del backend, evitando duplicar la definición del esquema.
+
+### `/docs`
+
+Contiene la documentación funcional y técnica del proyecto.
+
+---
+
+## Documentación
+
+La documentación principal del proyecto está dividida en los siguientes archivos:
+
+### Modelo de datos
+
+[`docs/modelo-datos.md`](docs/modelo-datos.md)
+
+Define:
+
+- entidades;
+- atributos;
+- tipos de datos;
+- claves primarias y foráneas;
+- relaciones;
+- índices;
+- diagrama entidad-relación;
+- decisiones de diseño.
+
+### Módulos
+
+[`docs/modulos.md`](docs/modulos.md)
+
+Describe los módulos funcionales del sistema y su prioridad P0, P1 o P2.
+
+### Arquitectura
+
+[`docs/arquitectura.md`](docs/arquitectura.md)
+
+Describe la arquitectura general, responsabilidades de los componentes y tecnologías seleccionadas.
+
+### Tools
+
+[`docs/tools.md`](docs/tools.md)
+
+Define las operaciones estructuradas mediante las cuales el agente podrá comunicarse con el backend.
+
+### Validación con usuarios
+
+[`docs/validacion-usuarios.md`](docs/validacion-usuarios.md)
+
+Documenta la encuesta realizada, los resultados obtenidos y las conclusiones utilizadas para validar el problema y orientar el alcance del producto.
+
+---
+
+## Criterio de implementación
+
+El desarrollo se realizará desde los componentes determinísticos hacia la capa conversacional.
+
+El orden previsto es:
+
+1. backend FastAPI + PostgreSQL;
+2. autenticación, cuentas, movimientos y consultas;
+3. definición de tools y reglas de negocio;
+4. integración con OpenClaw y LLM;
+5. resolución conversacional de ambigüedades;
+6. interfaz web;
+7. funcionalidades P1 únicamente después de estabilizar P0.
+
+El objetivo técnico principal será completar el circuito:
+
+```text
+Mensaje
    ↓
 OpenClaw + LLM
    ↓
-tool / solicitud estructurada
+Tool
    ↓
 FastAPI
    ↓
-validación + reglas de negocio
+Validación
    ↓
 PostgreSQL
    ↓
-respuesta
+Respuesta
 ```
 
-Por ejemplo, ante:
+---
 
-> "Gasté ayer $18.500 en supermercado con la Mercado Pago."
+## Estado actual
 
-el sistema deberá interpretar la solicitud y el backend deberá comprobar:
+El proyecto se encuentra en desarrollo dentro del marco del **Trabajo Final de la Tecnicatura Universitaria en Programación**.
 
-1. que el usuario esté autenticado;
-2. que la cuenta `Mercado Pago` exista;
-3. que la cuenta pertenezca al usuario;
-4. que el monto sea válido;
-5. que la categoría sea válida;
-6. que se encuentren presentes todos los datos necesarios;
-7. que la operación pueda ejecutarse según las reglas del sistema.
+Actualmente se encuentran definidos:
 
-Recién después de superar estas validaciones el movimiento podrá ser persistido.
+- problema y usuario objetivo;
+- validación inicial con usuarios;
+- alcance P0, P1 y P2;
+- arquitectura general;
+- módulos funcionales;
+- modelo de datos;
+- tecnologías principales;
+- contratos iniciales de tools;
+- criterios de seguridad;
+- estrategia inicial de pruebas;
+- estructura del repositorio.
 
-Posteriormente, el usuario deberá poder consultar:
-
-> "¿Cuánto gasté este mes en supermercado?"
-
-y obtener una respuesta basada exclusivamente en los movimientos almacenados y calculados por el backend.
-
-Completar correctamente este circuito será el primer hito técnico del proyecto antes de avanzar con funcionalidades P1 y P2.
+La documentación se actualizará progresivamente a medida que avance la implementación y se incorporen las devoluciones del tutor.
 
 ---
 
-## Orden de implementación
+## Equipo
 
-El desarrollo se realizará desde el núcleo del sistema hacia las capas externas, priorizando primero los componentes responsables de la lógica de negocio y la persistencia.
+- Aguilar
+- Alochis
+- Zupan
 
-El orden previsto será:
+**Tutor:** Oscar Londero
 
-1. implementar FastAPI + PostgreSQL sin integración con IA, incluyendo cuentas, gastos, ingresos y consultas básicas;
-2. definir e implementar las tools estructuradas y las reglas de negocio;
-3. integrar OpenClaw y el modelo de lenguaje;
-4. implementar la resolución conversacional de información faltante y ambigüedades;
-5. desarrollar e integrar la interfaz web;
-6. evaluar funcionalidades P1 únicamente cuando el núcleo P0 se encuentre estable.
-
-Este orden permite validar primero los componentes determinísticos del sistema y posteriormente incorporar la capa de interpretación mediante IA.
-
-La interfaz web podrá mantener mecanismos tradicionales de carga mediante formularios como alternativa a la interacción conversacional. De esta manera, la lógica financiera del sistema no dependerá del funcionamiento del LLM y ambas formas de interacción podrán utilizar el mismo backend.
-
----
-
-## Estado del proyecto
-
-Proyecto Final de la Tecnicatura en Programación, orientación Desarrollo Web.
-
-Actualmente el proyecto se encuentra en etapa de definición funcional y técnica.
-
-### Próximos pasos
-
-1. Realizar entrevistas con potenciales usuarios y documentar los resultados.
-2. Definir los primeros casos del dataset de pruebas de lenguaje natural junto con sus resultados esperados.
-3. Diseñar el modelo inicial de datos para P0.
-4. Definir los contratos de las tools.
-5. Implementar el núcleo inicial con FastAPI + PostgreSQL.
-6. Realizar la prueba técnica mínima de integración con OpenClaw.
-7. Seleccionar y validar el proveedor y modelo LLM.
-8. Evaluar los resultados obtenidos antes de incorporar funcionalidades P1 y P2.
-   
 ---
 
 ## Licencia
