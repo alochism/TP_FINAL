@@ -1,13 +1,14 @@
-"""Capa de tools para el agente (OpenClaw). Implementa docs/tools.md.
+"""Capa de tools para OpenClaw. Implementa docs/tools.md.
 
-- Recibe NOMBRES (cuenta, categoria) y los resuelve contra los datos del usuario autenticado.
-- Detecta datos faltantes y responde con el envelope {status, code, ...}.
-- Ejecuta reutilizando las rutas existentes (transactions / accounts), asi las
-  validaciones de negocio siguen viviendo en un solo lugar.
+- Parametros y resultados siguen el contrato de docs/tools.md (nombres en ingles).
+- Las cuentas y categorias llegan como NOMBRE y se resuelven solo entre las del usuario autenticado.
+- Si falta o es ambiguo un dato requerido, NO se ejecuta nada: se responde needs_info.
+- Se ejecuta reutilizando las rutas existentes (transactions / accounts): las reglas de negocio
+  siguen en un solo lugar.
 - Siempre responde HTTP 200 con envelope. Solo la autenticacion falla con 401/403.
 """
+import datetime as dt
 import unicodedata
-from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
 from zoneinfo import ZoneInfo
@@ -18,11 +19,11 @@ from app.routers import accounts as accounts_routes
 from app.routers import transactions as tx_routes
 from app.schemas.transaction import TransactionCreate
 from app.security import get_current_user
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/agent", tags=["Agent"])
+router = APIRouter(prefix="/tools", tags=["Tools"])
 
 TZ = ZoneInfo("America/Argentina/Buenos_Aires")
 DbDep = Annotated[Session, Depends(get_db)]
@@ -31,13 +32,18 @@ UserDep = Annotated[User, Depends(get_current_user)]
 
 # ---------- helpers ----------
 
-def _today() -> date:
-    return datetime.now(TZ).date()
+def _today() -> dt.date:
+    return dt.datetime.now(TZ).date()
 
 
 def _norm(text: str) -> str:
     text = unicodedata.normalize("NFD", text.strip().lower())
     return "".join(c for c in text if unicodedata.category(c) != "Mn")
+
+
+def _num(value):
+    value = Decimal(str(value))
+    return int(value) if value == value.to_integral_value() else float(value)
 
 
 def _env(status, code=None, missing=None, options=None, data=None, hint=None):
@@ -78,24 +84,24 @@ def _categories(db: Session, kind: str | None = None):
     return query.all()
 
 
-def _parse_date(value: str | None) -> date | None:
-    return date.fromisoformat(value) if value else None
+def _parse_date(value: str | None) -> dt.date | None:
+    return dt.date.fromisoformat(value) if value else None
 
 
 def _account_issue(err: str, accounts):
     code = "ACCOUNT_AMBIGUOUS" if err == "AMBIGUOUS" else "ACCOUNT_NOT_FOUND"
     return _env(
-        "needs_info", code, ["cuenta"],
-        {"cuenta": [a.name for a in accounts]},
-        hint="Preguntale al usuario de que cuenta se trata.",
+        "needs_info", code, ["account"],
+        {"account": [a.name for a in accounts]},
+        hint="Pregunta al usuario de que cuenta se trata.",
     )
 
 
 def _category_issue(categories):
     return _env(
-        "needs_info", "CATEGORY_UNRESOLVED", ["categoria"],
-        {"categoria": [c.name for c in categories]},
-        hint="Preguntale al usuario que categoria usar.",
+        "needs_info", "CATEGORY_UNRESOLVED", ["category"],
+        {"category": [c.name for c in categories]},
+        hint="Pregunta al usuario que categoria usar.",
     )
 
 
@@ -103,22 +109,22 @@ def _invalid_date():
     return _env("rejected", "INVALID_DATE", hint="La fecha debe ser valida, con formato AAAA-MM-DD.")
 
 
-# ---------- escritura ----------
+# ---------- escritura: create_expense / create_income ----------
 
 class MovementIn(BaseModel):
-    monto: float | int | str | None = None
-    cuenta: str | None = None
-    categoria_sugerida: str | None = None
-    fecha: str | None = None
-    descripcion: str | None = Field(default=None, max_length=200)
+    amount: float | int | str | None = None
+    date: str | None = None
+    category: str | None = None
+    account: str | None = None
+    description: str | None = Field(default=None, max_length=200)
 
 
 def _create(kind: str, body: MovementIn, db: Session, user: User):
     # 1) Rechazos: dato presente pero invalido
     amount = None
-    if body.monto is not None:
+    if body.amount is not None:
         try:
-            amount = Decimal(str(body.monto))
+            amount = Decimal(str(body.amount))
         except InvalidOperation:
             amount = Decimal(0)  # fuerza INVALID_AMOUNT
         if not amount.is_finite() or amount <= 0 or amount.as_tuple().exponent < -2:
@@ -127,39 +133,45 @@ def _create(kind: str, body: MovementIn, db: Session, user: User):
                 hint="El monto debe ser un numero mayor a cero, con hasta 2 decimales.",
             )
 
-    try:
-        tx_date = _parse_date(body.fecha) or _today()
-    except ValueError:
-        return _invalid_date()
-    if tx_date > _today():
-        return _env("rejected", "INVALID_DATE", hint="No se pueden registrar movimientos con fecha futura.")
+    tx_date = None
+    if body.date:
+        try:
+            tx_date = _parse_date(body.date)
+        except ValueError:
+            return _invalid_date()
+        if tx_date > _today():
+            return _env("rejected", "INVALID_DATE", hint="No se pueden registrar movimientos con fecha futura.")
 
-    # 2) Datos faltantes o ambiguos: no se ejecuta nada, se pregunta
+    # 2) Datos requeridos faltantes o ambiguos: no se ejecuta nada, se pregunta
     accounts = _accounts(db, user)
     categories = _categories(db, "EXPENSE" if kind == "expense" else "INCOME")
     missing, options, code = [], {}, None
 
     if amount is None:
-        missing.append("monto")
+        missing.append("amount")
         code = "MISSING_AMOUNT"
 
+    if tx_date is None:
+        missing.append("date")
+        code = code or "MISSING_DATE"
+
     account = None
-    if body.cuenta:
-        account, err = _match(body.cuenta, accounts)
+    if body.account:
+        account, err = _match(body.account, accounts)
         err_code = {"AMBIGUOUS": "ACCOUNT_AMBIGUOUS", "NOT_FOUND": "ACCOUNT_NOT_FOUND"}.get(err)
     else:
         err_code = "MISSING_ACCOUNT"
     if account is None:
-        missing.append("cuenta")
-        options["cuenta"] = [a.name for a in accounts]
+        missing.append("account")
+        options["account"] = [a.name for a in accounts]
         code = code or err_code
 
     category = None
-    if body.categoria_sugerida:
-        category, _ = _match(body.categoria_sugerida, categories)
+    if body.category:
+        category, _ = _match(body.category, categories)
     if category is None:
-        missing.append("categoria")
-        options["categoria"] = [c.name for c in categories]
+        missing.append("category")
+        options["category"] = [c.name for c in categories]
         code = code or "CATEGORY_UNRESOLVED"
 
     if missing:
@@ -177,7 +189,7 @@ def _create(kind: str, body: MovementIn, db: Session, user: User):
                 category_id=category.id,
                 amount=amount,
                 date=tx_date,
-                description=body.descripcion,
+                description=body.description,
             ),
             db=db,
             current_user=user,
@@ -185,122 +197,122 @@ def _create(kind: str, body: MovementIn, db: Session, user: User):
     except HTTPException as exc:
         return _env("rejected", "RULE_VIOLATION", hint=str(exc.detail))
 
-    balance = accounts_routes.get_balance(db=db, current_user=user, account_id=account.id)["balance"]
     return _env("ok", data={
+        "success": True,
         "transaction_id": tx.id,
-        "tipo": "gasto" if kind == "expense" else "ingreso",
-        "monto": float(tx.amount),
-        "cuenta": account.name,
-        "categoria": category.name,
-        "fecha": tx_date.isoformat(),
-        "saldo_cuenta": float(balance),
+        "message": "Gasto registrado correctamente" if kind == "expense" else "Ingreso registrado correctamente",
+        # eco normalizado de lo registrado (nombres resueltos por el backend)
+        "amount": _num(tx.amount),
+        "date": tx_date.isoformat(),
+        "account": account.name,
+        "category": category.name,
     })
 
 
 @router.post("/expense")
-def agent_create_expense(body: MovementIn, db: DbDep, user: UserDep):
+def tools_create_expense(body: MovementIn, db: DbDep, user: UserDep):
     return _create("expense", body, db, user)
 
 
 @router.post("/income")
-def agent_create_income(body: MovementIn, db: DbDep, user: UserDep):
+def tools_create_income(body: MovementIn, db: DbDep, user: UserDep):
     return _create("income", body, db, user)
 
 
 # ---------- lectura ----------
 
 @router.get("/balance")
-def agent_balance(db: DbDep, user: UserDep, cuenta: str | None = None):
-    account = None
-    if cuenta:
+def tools_balance(db: DbDep, user: UserDep, account: str | None = None):
+    acc = None
+    if account:
         accounts = _accounts(db, user)
-        account, err = _match(cuenta, accounts)
+        acc, err = _match(account, accounts)
         if err:
             return _account_issue(err, accounts)
     result = accounts_routes.get_balance(
-        db=db, current_user=user, account_id=account.id if account else None
+        db=db, current_user=user, account_id=acc.id if acc else None
     )
     return _env("ok", data={
-        "cuenta": account.name if account else None,
-        "balance": float(result["balance"]),
-        "moneda": "ARS",
+        "account": acc.name if acc else None,
+        "currency": "ARS",
+        "balance": _num(result["balance"]),
     })
 
 
 @router.get("/transactions")
-def agent_transactions(
+def tools_transactions(
     db: DbDep,
     user: UserDep,
-    cuenta: str | None = None,
-    categoria: str | None = None,
-    tipo: str | None = None,
-    fecha_desde: str | None = None,
-    fecha_hasta: str | None = None,
-    limite: int = 10,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    type_: str | None = Query(default=None, alias="type"),
+    account: str | None = None,
+    category: str | None = None,
+    limit: int = 10,
 ):
     try:
-        d_from, d_to = _parse_date(fecha_desde), _parse_date(fecha_hasta)
+        d_from, d_to = _parse_date(date_from), _parse_date(date_to)
     except ValueError:
         return _invalid_date()
 
     tx_type = None
-    if tipo:
-        tx_type = {"gasto": "EXPENSE", "ingreso": "INCOME"}.get(_norm(tipo))
+    if type_:
+        tx_type = {"EXPENSE": "EXPENSE", "GASTO": "EXPENSE", "INCOME": "INCOME", "INGRESO": "INCOME"}.get(
+            _norm(type_).upper()
+        )
         if tx_type is None:
-            return _env("rejected", "INVALID_TYPE", hint="El tipo debe ser 'gasto' o 'ingreso'.")
+            return _env("rejected", "INVALID_TYPE", hint="type debe ser EXPENSE o INCOME.")
 
     accounts = _accounts(db, user)
     account_id = None
-    if cuenta:
-        account, err = _match(cuenta, accounts)
+    if account:
+        acc, err = _match(account, accounts)
         if err:
             return _account_issue(err, accounts)
-        account_id = account.id
+        account_id = acc.id
 
     categories = _categories(db)
     category_id = None
-    if categoria:
-        category, _ = _match(categoria, categories)
-        if category is None:
+    if category:
+        cat, _ = _match(category, categories)
+        if cat is None:
             return _category_issue(categories)
-        category_id = category.id
+        category_id = cat.id
 
     rows = tx_routes.get_transactions(
         db=db, current_user=user, date_from=d_from, date_to=d_to,
         type=tx_type, account_id=account_id, category_id=category_id,
     )
-    rows = [t for t in rows if t.status == "ACTIVE"]  # ver nota: la ruta original no filtra
+    rows = [t for t in rows if t.status == "ACTIVE"]  # los anulados no se informan
     acc_names = {a.id: a.name for a in accounts}
     cat_names = {c.id: c.name for c in categories}
 
     return _env("ok", data={
-        "total_resultados": len(rows),
-        "movimientos": [
+        "transactions": [
             {
                 "id": t.id,
-                "tipo": "gasto" if t.type == "EXPENSE" else "ingreso",
-                "monto": float(t.amount),
-                "cuenta": acc_names.get(t.account_id),
-                "categoria": cat_names.get(t.category_id),
-                "fecha": t.date.isoformat(),
-                "descripcion": t.description,
+                "type": t.type,
+                "amount": _num(t.amount),
+                "date": t.date.isoformat(),
+                "category": cat_names.get(t.category_id),
+                "account": acc_names.get(t.account_id),
+                "description": t.description,
             }
-            for t in rows[: max(1, min(limite, 50))]
+            for t in rows[: max(1, min(limit, 50))]
         ],
     })
 
 
 @router.get("/expenses-by-category")
-def agent_expenses_by_category(
+def tools_expenses_by_category(
     db: DbDep,
     user: UserDep,
-    fecha_desde: str | None = None,
-    fecha_hasta: str | None = None,
-    cuenta: str | None = None,
-    categoria: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    account: str | None = None,
 ):
     try:
-        d_from, d_to = _parse_date(fecha_desde), _parse_date(fecha_hasta)
+        d_from, d_to = _parse_date(date_from), _parse_date(date_to)
     except ValueError:
         return _invalid_date()
     if d_from is None and d_to is None:  # por defecto: mes actual
@@ -308,32 +320,18 @@ def agent_expenses_by_category(
         d_from = d_to.replace(day=1)
 
     account_id = None
-    if cuenta:
+    if account:
         accounts = _accounts(db, user)
-        account, err = _match(cuenta, accounts)
+        acc, err = _match(account, accounts)
         if err:
             return _account_issue(err, accounts)
-        account_id = account.id
+        account_id = acc.id
 
     rows = tx_routes.get_expenses_by_category(
         db=db, current_user=user, date_from=d_from, date_to=d_to, account_id=account_id
     )
-    items = [{"categoria": r["category"], "total": float(r["total"])} for r in rows]
-
-    if categoria:
-        expense_categories = _categories(db, "EXPENSE")
-        category, _ = _match(categoria, expense_categories)
-        if category is None:
-            return _category_issue(expense_categories)
-        items = [i for i in items if i["categoria"] == category.name] or [
-            {"categoria": category.name, "total": 0.0}
-        ]
-
     return _env("ok", data={
-        "periodo": {
-            "desde": d_from.isoformat() if d_from else None,
-            "hasta": d_to.isoformat() if d_to else None,
-        },
-        "categorias": items,
-        "total_gastos": sum(i["total"] for i in items),
+        "date_from": d_from.isoformat() if d_from else None,
+        "date_to": d_to.isoformat() if d_to else None,
+        "expenses": [{"category": r["category"], "amount": _num(r["total"])} for r in rows],
     })
