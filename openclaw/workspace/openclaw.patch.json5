@@ -1,0 +1,41 @@
+// Parche de configuración para OpenClaw. NO es el archivo de config completo:
+// se aplica con `openclaw config patch --file .\openclaw.patch.json5`
+// (probar antes con --dry-run). Ajustar las rutas a tu máquina.
+// No contiene secretos: las variables ${...} se leen del entorno donde corre el gateway.
+{
+  agents: {
+    defaults: {
+      workspace: "C:/Users/Joel/Documents/facu/TP FINAL/TP_FINAL/openclaw/workspace",
+    },
+    entries: {
+      finanzas_personales: {
+        workspace: "C:/Users/Joel/Documents/facu/TP FINAL/TP_FINAL/openclaw/workspace",
+      },
+    },
+  },
+
+  // Solo las tools de finanzas (servidor MCP). Nada de shell, archivos ni navegador.
+  tools: {
+    profile: "minimal",
+    alsoAllow: ["bundle-mcp"],
+    deny: ["group:runtime", "group:fs", "browser", "canvas"],
+  },
+
+  mcp: {
+    servers: {
+      finanzas: {
+        command: "C:/Users/Joel/Documents/facu/TP FINAL/TP_FINAL/openclaw/tools-mcp/.venv/Scripts/python.exe",
+        args: ["server.py"],
+        cwd: "C:/Users/Joel/Documents/facu/TP FINAL/TP_FINAL/openclaw/tools-mcp",
+        env: {
+          BACKEND_URL: "http://localhost:8000",
+          AGENT_USER_EMAIL: "${AGENT_USER_EMAIL}",
+          AGENT_USER_PASSWORD: "${AGENT_USER_PASSWORD}",
+        },
+      },
+    },
+  },
+
+  // El modelo NO va acá: se elige aparte con `openclaw models set <proveedor/modelo>`
+  // y la clave va en una variable de entorno (GEMINI_API_KEY), así cada dev usa su LLM.
+}

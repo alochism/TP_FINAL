@@ -1,0 +1,93 @@
+{
+  "wizard": {
+    "securityAcknowledgedAt": "2026-11-16T13:51:16.359Z",
+    "accessMode": "guarded",
+    "lastRunAt": "2026-11-16T13:54:05.283Z",
+    "lastRunVersion": "2026.11.4",
+    "lastRunCommand": "onboard",
+    "lastRunMode": "local"
+  },
+  "telemetry": {
+    "enabled": false,
+    "consentedAt": "2026-11-16T13:51:18.991Z"
+  },
+  "plugins": {
+    "entries": {
+      "anthropic": {
+        "config": {
+          "sessionCatalog": {
+            "enabled": false
+          }
+        }
+      },
+      "codex": {
+        "config": {
+          "sessionCatalog": {
+            "enabled": false
+          }
+        }
+      },
+      "browser": {
+        "enabled": false
+      },
+      "canvas": {
+        "enabled": false
+      },
+      "cua-computer": {
+        "enabled": false
+      },
+      "file-transfer": {
+        "enabled": false
+      },
+      "github": {
+        "enabled": false
+      },
+      "linux-node": {
+        "enabled": false
+      },
+      "memory-core": {
+        "enabled": false
+      }
+    }
+  },
+  "meta": {
+    "migrations": {
+      "modelPolicyAllowlist": true,
+      "utilityModelSeparation": true
+    },
+    "lastTouchedVersion": "2026.11.4"
+  },
+  "agents": {
+    "defaults": {
+      "authInheritance": {
+        "agentId": "main"
+      },
+      "workspace": "C:\\home\\.openclaw\\workspace"
+    },
+    "entries": {
+      "finanzas_personales": {
+        "name": "finanzas_personales",
+        "workspace": "C:/Users/Joel/Documents/facu/TP FINAL/TP_FINAL/openclaw/workspace",
+        "agentDir": "C:\\home\\.openclaw\\agents\\finanzas_personales\\agent",
+        "identity": {
+          "name": "finanzas_personales"
+        }
+      }
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "port": 18789,
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "510a7ba4ca84b47039072000d82a3cbfaf00d5f9610a0bb7"
+    },
+    "tailscale": {
+      "mode": "off"
+    }
+  },
+  "tools": {
+    "profile": "full"
+  }
+}
