@@ -153,7 +153,18 @@ Se armó un set de **60 frases** ([`backend/evaluacion/casos.json`](../backend/e
 
 Métrica principal: **operaciones incorrectas ejecutadas sin solicitar aclaración**.
 
-Resultados en [`evaluacion-nl.md`](evaluacion-nl.md).
+Se hicieron dos corridas contra el despliegue online con Gemini:
+
+| | Primera corrida | Segunda corrida |
+|---|---|---|
+| Casos correctos | 52 de 60 (87 %) | 58 de 60 (97 %) |
+| Operaciones incorrectas sin aclaración | 1 | 1 |
+
+La primera corrida detectó que un gasto en dólares se registraba como pesos y que la IA proponía categorías inexistentes. Las dos cosas se corrigieron con reglas en el backend: rechazo de monedas distintas de ARS y lista cerrada de categorías en las tools. En la segunda corrida el error crítico fue otro: un gasto con motivo vago ("en algo") se registró en "Otros" en lugar de preguntar. Se ajustó el prompt; ese último ajuste no está medido todavía.
+
+La evaluación mostró además que la mayoría de las situaciones riesgosas (montos imprecisos, cuentas inexistentes, datos contradictorios, otras monedas, pedidos fuera de alcance o maliciosos) terminan en una pregunta o un rechazo, sin registrar nada.
+
+Detalle completo en [`evaluacion-nl.md`](evaluacion-nl.md).
 
 ---
 
