@@ -110,3 +110,50 @@ def test_user_only_sees_own_transactions(client, create_user, create_account, ca
 
     assert len(response.json()) == 1
     assert response.json()[0]["account_id"] == ana_account["id"]
+
+
+def test_void_transaction_excludes_it_from_balance(client, create_user, create_account, category_id):
+    headers = create_user()
+    account = create_account(headers, initial_balance=10000)
+    created = client.post(
+        "/transactions/expense",
+        json=expense_data(account["id"], category_id("Transporte", "EXPENSE"), amount=4000),
+        headers=headers
+    ).json()
+
+    response = client.patch(f"/transactions/{created['id']}/void", headers=headers)
+    balance = client.get("/accounts/balance", headers=headers).json()
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "VOIDED"
+    assert float(balance["balance"]) == 10000
+
+
+def test_void_transaction_twice_is_rejected(client, create_user, create_account, category_id):
+    headers = create_user()
+    account = create_account(headers)
+    created = client.post(
+        "/transactions/expense",
+        json=expense_data(account["id"], category_id("Transporte", "EXPENSE")),
+        headers=headers
+    ).json()
+
+    client.patch(f"/transactions/{created['id']}/void", headers=headers)
+    response = client.patch(f"/transactions/{created['id']}/void", headers=headers)
+
+    assert response.status_code == 400
+
+
+def test_cannot_void_transaction_of_another_user(client, create_user, create_account, category_id):
+    owner = create_user(email="bruno.salas@correo.com")
+    account = create_account(owner)
+    created = client.post(
+        "/transactions/expense",
+        json=expense_data(account["id"], category_id("Transporte", "EXPENSE")),
+        headers=owner
+    ).json()
+    headers = create_user()
+
+    response = client.patch(f"/transactions/{created['id']}/void", headers=headers)
+
+    assert response.status_code == 404

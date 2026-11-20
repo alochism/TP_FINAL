@@ -81,6 +81,50 @@ Almacenara usuarios, cuentas, categorias y transacciones. El acceso a la base de
 
 ---
 
+## Implementacion del flujo conversacional
+
+La interfaz web no se comunica directamente con la IA. Todo mensaje entra por
+`POST /chat` del backend, autenticado con el JWT del usuario:
+
+```mermaid
+sequenceDiagram
+    participant W as Interfaz web
+    participant B as Backend FastAPI
+    participant L as OpenClaw / LLM
+    participant D as PostgreSQL
+    W->>B: POST /chat (JWT + mensaje + historial)
+    B->>L: mensaje + definicion de tools
+    L-->>B: tool elegida y parametros propuestos
+    B->>B: valida datos, cuenta y categoria del usuario del JWT
+    B->>D: registra el movimiento (solo si todo es valido)
+    B->>L: resultado (ok / needs_info / rejected)
+    L-->>B: respuesta en lenguaje natural
+    B->>D: registra la auditoria del mensaje
+    B-->>W: respuesta + operaciones realizadas
+```
+
+- La IA solo propone la tool y sus parametros. El usuario sale siempre del JWT.
+- Las tools se ejecutan en el backend (`app/routers/tools.py`), reutilizando las mismas validaciones que la API REST.
+- El backend permite como maximo una operacion de escritura por mensaje.
+- Si la IA no responde o responde algo invalido, no se modifica nada y se informa al usuario.
+- Cada mensaje queda registrado en `audit_logs`.
+
+### Proveedor de IA reemplazable
+
+El backend usa el formato de Chat Completions de OpenAI, que aceptan tanto el
+gateway de OpenClaw (`/v1/chat/completions`) como Gemini y otros proveedores.
+El proveedor se elige con `LLM_BASE_URL`, `LLM_API_KEY` y `LLM_MODEL`:
+
+| Entorno | Proveedor | Motivo |
+|---|---|---|
+| Desarrollo local | Gateway de OpenClaw | Orquestacion del agente con su skill y sus reglas |
+| Despliegue online | Gemini Flash (API directa, modelo `gemini-flash-latest`) | El gateway de OpenClaw no corre en el plan gratuito de Render |
+
+Cambiar de proveedor no modifica la logica financiera. Gemini Flash se eligio
+por tener un nivel gratuito suficiente para el TPF, baja latencia y soporte de tool calling.
+
+---
+
 ## Arquitectura interna del backend
 
 El backend se organizara en capas con responsabilidades separadas:
@@ -91,10 +135,13 @@ backend/
 │   ├── main.py
 │   ├── database.py
 │   ├── security.py
+│   ├── agent/        (cliente del LLM, prompt y definicion de tools)
 │   ├── models/
 │   ├── schemas/
-│   └── routers/
+│   └── routers/      (incluye chat.py y tools.py)
 ├── alembic/
+├── evaluacion/       (frases de prueba y script de evaluacion)
+├── tests/
 └── requirements.txt
 ```
 
@@ -123,10 +170,12 @@ El detalle de las operaciones disponibles para la comunicacion entre el agente y
 | Migraciones | Alembic |
 | Autenticacion | JWT |
 | Testing | pytest |
+| Proveedor de IA | Gemini Flash, modelo `gemini-flash-latest` (API compatible con OpenAI) |
 | Control de versiones | Git + GitHub |
-| Contenedores | Docker |
+| Despliegue | Render (PostgreSQL, backend y frontend) |
 
-El proveedor del modelo de lenguaje y el servicio de despliegue se definiran durante la etapa de implementacion.
+Docker se descarto: el despliegue en Render se define en `render.yaml` y no hace falta
+un contenedor propio para el alcance del TPF.
 
 ---
 

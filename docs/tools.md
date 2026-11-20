@@ -72,9 +72,14 @@ Permite registrar un gasto.
   "date": "2026-09-23",
   "category": "Alimentacion",
   "account": "Mercado Pago",
-  "description": "Compra en supermercado"
+  "description": "Compra en supermercado",
+  "currency": "ARS"
 }
 ```
+
+`currency` es opcional: la IA lo envia solo si el usuario menciona una moneda.
+`category` se elige de la lista cerrada de categorias existentes, que el backend
+incluye en la definicion de la tool.
 
 ### Datos requeridos
 
@@ -95,6 +100,7 @@ El backend debe verificar que:
 - la cuenta pertenezca al usuario autenticado;
 - la cuenta se encuentre activa;
 - la moneda de la cuenta sea ARS;
+- la moneda mencionada, si la hay, sea ARS (si no, se rechaza con `UNSUPPORTED_CURRENCY`);
 - la categoria exista;
 - la categoria corresponda a un gasto;
 - la fecha sea valida.

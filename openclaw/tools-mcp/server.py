@@ -1,10 +1,11 @@
-"""Servidor MCP de finanzas. Wrapper delgado sobre /agent/* del backend.
+"""Servidor MCP de finanzas. Wrapper delgado sobre /tools/* del backend.
 
 No contiene reglas de negocio: reenvia los parametros y devuelve el envelope tal cual.
 Las unicas respuestas propias son errores de transporte/autenticacion.
 
-MODO DE IDENTIDAD (desarrollo): inicia sesion con un usuario de prueba definido
-por variables de entorno. NO es el modelo final multiusuario (ver docs).
+MODO DE IDENTIDAD (solo desarrollo): inicia sesion con un usuario de prueba definido
+por variables de entorno. El canal multiusuario es POST /chat del backend, donde el
+usuario sale del JWT de la interfaz web (ver openclaw/README.md).
 """
 import os
 
@@ -68,78 +69,76 @@ def _call(method: str, path: str, *, params: dict | None = None, body: dict | No
 
 @mcp.tool()
 def create_expense(
-    monto: float | None = None,
-    cuenta: str | None = None,
-    categoria_sugerida: str | None = None,
-    fecha: str | None = None,
-    descripcion: str | None = None,
+    amount: float | None = None,
+    account: str | None = None,
+    category: str | None = None,
+    date: str | None = None,
+    description: str | None = None,
 ) -> dict:
     """Registra un gasto del usuario.
 
-    - monto: numero en pesos. Convertir "20 lucas" -> 20000, "350 mil" -> 350000.
-    - cuenta: nombre de la cuenta SOLO si el usuario la menciono. Nunca la inventes ni la deduzcas.
-    - categoria_sugerida: tu mejor interpretacion (ej. "supermercado", "servicios").
-    - fecha: AAAA-MM-DD. Resolver "ayer", "el martes" con la fecha actual. Omitir si es hoy.
-    - descripcion: texto corto.
+    - amount: numero en pesos. Convertir "20 lucas" -> 20000, "350 mil" -> 350000.
+    - account: nombre de la cuenta SOLO si el usuario la menciono. Nunca la inventes ni la deduzcas.
+    - category: tu mejor interpretacion (ej. "Alimentacion", "Servicios").
+    - date: AAAA-MM-DD. Resolver "ayer", "el martes" con la fecha actual. Omitir si es hoy.
+    - description: texto corto.
     Si falta un dato, la respuesta tiene status "needs_info" y NO se registro nada:
     pregunta al usuario solo lo que figura en missing_fields y vuelve a llamar con todos los datos.
     """
-    return _call("POST", "/agent/expense", body={
-        "monto": monto, "cuenta": cuenta, "categoria_sugerida": categoria_sugerida,
-        "fecha": fecha, "descripcion": descripcion,
+    return _call("POST", "/tools/expense", body={
+        "amount": amount, "account": account, "category": category,
+        "date": date, "description": description,
     })
 
 
 @mcp.tool()
 def create_income(
-    monto: float | None = None,
-    cuenta: str | None = None,
-    categoria_sugerida: str | None = None,
-    fecha: str | None = None,
-    descripcion: str | None = None,
+    amount: float | None = None,
+    account: str | None = None,
+    category: str | None = None,
+    date: str | None = None,
+    description: str | None = None,
 ) -> dict:
     """Registra un ingreso del usuario (ej. sueldo, cobro). Mismas reglas que create_expense;
-    'cuenta' es la cuenta donde se acredito el dinero. Nunca inventes la cuenta."""
-    return _call("POST", "/agent/income", body={
-        "monto": monto, "cuenta": cuenta, "categoria_sugerida": categoria_sugerida,
-        "fecha": fecha, "descripcion": descripcion,
+    'account' es la cuenta donde se acredito el dinero. Nunca inventes la cuenta."""
+    return _call("POST", "/tools/income", body={
+        "amount": amount, "account": account, "category": category,
+        "date": date, "description": description,
     })
 
 
 @mcp.tool()
-def get_balance(cuenta: str | None = None) -> dict:
-    """Consulta el saldo registrado. Sin 'cuenta' devuelve el total de todas las cuentas."""
-    return _call("GET", "/agent/balance", params={"cuenta": cuenta})
+def get_balance(account: str | None = None) -> dict:
+    """Consulta el saldo registrado. Sin 'account' devuelve el total de todas las cuentas."""
+    return _call("GET", "/tools/balance", params={"account": account})
 
 
 @mcp.tool()
 def get_transactions(
-    cuenta: str | None = None,
-    categoria: str | None = None,
-    tipo: str | None = None,
-    fecha_desde: str | None = None,
-    fecha_hasta: str | None = None,
-    limite: int = 10,
+    account: str | None = None,
+    category: str | None = None,
+    type: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = 10,
 ) -> dict:
-    """Lista movimientos recientes. tipo: "gasto" o "ingreso". Fechas AAAA-MM-DD. limite maximo 50."""
-    return _call("GET", "/agent/transactions", params={
-        "cuenta": cuenta, "categoria": categoria, "tipo": tipo,
-        "fecha_desde": fecha_desde, "fecha_hasta": fecha_hasta, "limite": limite,
+    """Lista movimientos recientes. type: "EXPENSE" o "INCOME". Fechas AAAA-MM-DD. limit maximo 50."""
+    return _call("GET", "/tools/transactions", params={
+        "account": account, "category": category, "type": type,
+        "date_from": date_from, "date_to": date_to, "limit": limit,
     })
 
 
 @mcp.tool()
 def get_expenses_by_category(
-    fecha_desde: str | None = None,
-    fecha_hasta: str | None = None,
-    cuenta: str | None = None,
-    categoria: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    account: str | None = None,
 ) -> dict:
     """Total de gastos agrupado por categoria. Si no se indican fechas, usa el mes actual.
     Resolver "este mes", "el mes pasado" a fechas AAAA-MM-DD."""
-    return _call("GET", "/agent/expenses-by-category", params={
-        "fecha_desde": fecha_desde, "fecha_hasta": fecha_hasta,
-        "cuenta": cuenta, "categoria": categoria,
+    return _call("GET", "/tools/expenses-by-category", params={
+        "date_from": date_from, "date_to": date_to, "account": account,
     })
 
 

@@ -1,0 +1,440 @@
+/* Colores del tema claro (por defecto): fondo celeste pastel con acentos en azul */
+:root {
+  --bg: #eaf5fc;
+  --surface: #ffffff;
+  --header-bg: linear-gradient(90deg, #d6ecf9, #e6e1f8);
+  --highlight-bg: linear-gradient(120deg, #dff1fb, #ece6fb);
+  --table-head-bg: #ddeef9;
+  --bar-bg: #e3eef6;
+  --bar-fill: linear-gradient(90deg, #6aa9dc, #9b8be0);
+  --text: #1d3557;
+  --text-muted: #435d73;
+  --border: #c5dff0;
+  --border-width: 1px;
+  --primary: #2a5f9a;
+  --primary-text: #ffffff;
+  --error: #b42318;
+  --success: #1f7a4d;
+  --shadow: 0 4px 14px rgba(42, 95, 154, 0.08);
+  --radius: 12px;
+  --font-weight-strong: 600;
+
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* Tema de alto contraste: negro puro sobre blanco, bordes gruesos y texto mas marcado.
+   Pensado para leer la pantalla con luz solar directa */
+:root[data-theme='contrast'] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --text: #000000;
+  --text-muted: #000000;
+  --border: #000000;
+  --border-width: 2px;
+  --header-bg: #ffffff;
+  --highlight-bg: #ffffff;
+  --table-head-bg: #ffffff;
+  --bar-bg: #ffffff;
+  --bar-fill: #000000;
+  --shadow: none;
+  --primary: #000000;
+  --primary-text: #ffffff;
+  --error: #9b0000;
+  --success: #005a00;
+  --font-weight-strong: 800;
+
+  font-size: 17px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1 {
+  margin: 0 0 1rem;
+  font-size: 1.6rem;
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+}
+
+a {
+  color: var(--primary);
+  font-weight: var(--font-weight-strong);
+}
+
+/* Controles de formulario */
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-weight: var(--font-weight-strong);
+}
+
+input,
+select {
+  padding: 0.6rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: 8px;
+}
+
+input:focus,
+select:focus,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+button {
+  padding: 0.6rem 1rem;
+  font: inherit;
+  font-weight: var(--font-weight-strong);
+  color: var(--primary-text);
+  background: var(--primary);
+  border: var(--border-width) solid var(--primary);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button-secondary,
+.theme-toggle {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.error {
+  margin: 0;
+  color: var(--error);
+  font-weight: var(--font-weight-strong);
+}
+
+/* Contenedores */
+.card {
+  padding: 1.25rem;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 420px;
+  margin-top: 1.5rem;
+}
+
+/* Pantallas de login y registro */
+.auth-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.auth-theme {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 380px;
+}
+
+.auth-link {
+  margin: 0;
+  text-align: center;
+}
+
+/* Estructura de las pantallas internas */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--header-bg);
+  border-bottom: var(--border-width) solid var(--border);
+}
+
+.brand {
+  font-weight: 700;
+}
+
+.nav {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.nav a {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 0.25rem 0;
+}
+
+/* NavLink agrega la clase active a la pantalla actual */
+.nav a.active {
+  color: var(--primary);
+  border-bottom: 3px solid var(--primary);
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* Saldo total */
+.total {
+  background: var(--highlight-bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.total strong {
+  font-size: 1.5rem;
+}
+
+/* Tablas */
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table th,
+.table td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: var(--border-width) solid var(--border);
+}
+
+.table th {
+  font-weight: var(--font-weight-strong);
+  background: var(--table-head-bg);
+}
+
+.table .amount {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.section-title {
+  margin-top: 2rem;
+}
+
+.success {
+  margin: 0;
+  color: var(--success);
+  font-weight: var(--font-weight-strong);
+}
+
+/* Selector de gasto o ingreso */
+.type-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.type-selector label {
+  flex: 1;
+  flex-direction: row;
+  justify-content: center;
+  padding: 0.6rem;
+  border: var(--border-width) solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* El radio se oculta y se muestra el recuadro completo como opcion elegida */
+.type-selector input {
+  position: absolute;
+  opacity: 0;
+}
+
+.type-selector label.selected {
+  color: var(--primary-text);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.type-selector label:focus-within {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Filtros del historial */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+/* Colores de los importes: el signo tambien se muestra para no depender solo del color */
+.table .income {
+  color: var(--success);
+}
+
+.table .expense {
+  color: var(--error);
+}
+
+/* Resumen de gastos por categoria */
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+  list-style: none;
+}
+
+.category-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.category-row small {
+  color: var(--text-muted);
+}
+
+.bar {
+  height: 0.75rem;
+  background: var(--bar-bg);
+  border: var(--border-width) solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--bar-fill);
+}
+
+/* Chat */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 60vh;
+  overflow-y: auto;
+}
+
+.chat-bubble {
+  max-width: 75%;
+  padding: 0.65rem 0.9rem;
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.chat-user {
+  align-self: flex-end;
+  color: var(--primary-text);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.chat-assistant {
+  align-self: flex-start;
+  background: var(--highlight-bg);
+}
+
+.chat-error {
+  color: var(--error);
+  font-weight: var(--font-weight-strong);
+}
+
+.chat-pending {
+  color: var(--text-muted);
+}
+
+.chat-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: var(--font-weight-strong);
+  color: var(--success);
+  border: var(--border-width) solid var(--success);
+  border-radius: 999px;
+}
+
+.chat-form {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.chat-form input {
+  flex: 1;
+}
+
+/* Acciones en tablas */
+.button-small {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.table tr.voided td {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.table tr.voided td:last-child {
+  text-decoration: none;
+}

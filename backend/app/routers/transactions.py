@@ -169,6 +169,39 @@ def get_transactions(
         .all()
     )
 
+@router.patch(
+    "/{transaction_id}/void",
+    response_model=TransactionResponse
+)
+def void_transaction(
+    transaction_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    # Anulacion logica: el movimiento se conserva con estado VOIDED
+    # y deja de contar para saldos y consultas
+    transaction = db.get(Transaction, transaction_id)
+    account = db.get(Account, transaction.account_id) if transaction else None
+
+    if account is None or account.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Movimiento no encontrado"
+        )
+
+    if transaction.status == "VOIDED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El movimiento ya esta anulado"
+        )
+
+    transaction.status = "VOIDED"
+    db.commit()
+    db.refresh(transaction)
+
+    return transaction
+
+
 @router.get("/expenses-by-category")
 def get_expenses_by_category(
     db: Annotated[Session, Depends(get_db)],
