@@ -151,9 +151,8 @@ def _create(kind: str, body: MovementIn, db: Session, user: User):
         missing.append("amount")
         code = "MISSING_AMOUNT"
 
-    if tx_date is None:
-        missing.append("date")
-        code = code or "MISSING_DATE"
+    if tx_date is None:  # sin fecha mencionada: se registra con la fecha de hoy
+        tx_date = _today()
 
     account = None
     if body.account:
