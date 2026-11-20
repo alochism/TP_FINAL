@@ -101,7 +101,7 @@ Las reglas son determinísticas y están en el backend. No se usa un "confidence
 | Fecha futura o inválida | `rejected` |
 | Fecha no mencionada | Se registra con la fecha de hoy |
 | Más de una escritura en el mismo mensaje | La segunda se rechaza (`ONE_WRITE_PER_MESSAGE`) |
-| IA saturada o sin cuota (503/429) | Dos reintentos y, si sigue, modelo de respaldo |
+| IA saturada, sin cuota o lenta (503/429/timeout) | Un reintento y, si sigue, modelo de respaldo |
 | IA caída, lenta o con respuesta inválida | No se modifica nada y se informa |
 | Usuario no autenticado | HTTP 401/403 |
 | Anular un movimiento o desactivar una cuenta | Solo desde la interfaz, con confirmación explícita; se conserva el registro |
@@ -139,7 +139,7 @@ Cada mensaje genera un registro con el usuario, la fecha y hora, el mensaje orig
 
 ### Tests automáticos
 
-39 tests con pytest (`backend/tests/`), sobre SQLite en memoria:
+40 tests con pytest (`backend/tests/`), sobre SQLite en memoria:
 
 - autenticación, cuentas, movimientos y consultas;
 - reglas de negocio: montos inválidos, cuentas de otro usuario, categorías de tipo incorrecto, anulación de movimientos y desactivación de cuentas;

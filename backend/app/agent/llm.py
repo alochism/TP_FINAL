@@ -4,8 +4,8 @@ Usa el formato de Chat Completions de OpenAI, que aceptan tanto el gateway
 de OpenClaw como Gemini y otros proveedores. Cambiar de proveedor es cambiar
 LLM_BASE_URL, LLM_API_KEY y LLM_MODEL: la logica financiera no se toca.
 
-Ante errores transitorios del proveedor (429 o 5xx) se reintenta y, si esta
-configurado, se usa un modelo de respaldo (LLM_FALLBACK_MODEL). Reintentar es
+Ante errores transitorios del proveedor (429, 5xx o timeout) se reintenta una vez
+y, si esta configurado, se usa un modelo de respaldo (LLM_FALLBACK_MODEL). Reintentar es
 seguro: la IA no ejecuta operaciones, solo propone la tool que ejecuta el backend.
 """
 import logging
@@ -17,7 +17,7 @@ import httpx
 logger = logging.getLogger("uvicorn.error")
 
 TRANSIENT_STATUS = {429, 500, 502, 503, 504}
-RETRY_DELAYS = (1.5, 3.0)
+RETRY_DELAYS = (1.5,)
 
 
 class LLMError(Exception):
@@ -52,6 +52,11 @@ def chat_completion(messages: list[dict], tools: list[dict]) -> dict:
         for attempt in range(len(RETRY_DELAYS) + 1):
             try:
                 response = _post(model, messages, tools)
+            except httpx.TimeoutException:
+                # Un modelo lento se trata como saturado: se pasa al de respaldo
+                logger.warning("Proveedor de IA sin respuesta a tiempo (%s)", model)
+                response = httpx.Response(504)
+                break
             except httpx.HTTPError as exc:
                 logger.warning("Proveedor de IA no disponible (%s): %s", model, type(exc).__name__)
                 raise LLMError("Proveedor de IA no disponible") from exc
@@ -69,7 +74,7 @@ def chat_completion(messages: list[dict], tools: list[dict]) -> dict:
             break
 
     if response.status_code != 200:
-        logger.warning("Proveedor de IA respondio %s: %s", response.status_code, response.text[:300])
+        logger.warning("Proveedor de IA respondio %s: %s", response.status_code, response.text[:300] if response.content else "")
         raise LLMError(f"Proveedor de IA respondio {response.status_code}")
 
     try:
