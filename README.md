@@ -620,6 +620,8 @@ El sistema completo está desplegado en Render a partir de [`render.yaml`](rende
 | API (Swagger) | https://finanzas-tpfinal-api.onrender.com/docs |
 | Base de datos | PostgreSQL administrado por Render |
 
+> **Aclaración sobre la base de datos:** la base PostgreSQL usa el plan gratuito de Render, que **vence a los 30 días de su creación** (creada el 20/11/2026, vence alrededor del 20/12/2026). Pasado ese plazo hay que crear una nueva base (en Render o en otro servicio gratuito como Neon), actualizar `DATABASE_URL` y redesplegar; las migraciones y las categorías se cargan solas al iniciar el backend.
+
 Al iniciar, el backend aplica las migraciones y carga las categorías. En el plan gratuito el backend se suspende tras 15 minutos sin uso: el primer pedido puede tardar cerca de un minuto.
 
 ---

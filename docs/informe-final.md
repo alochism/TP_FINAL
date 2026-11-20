@@ -209,7 +209,7 @@ Todo el sistema está online en Render, definido en [`render.yaml`](../render.ya
 
 - Desde el chat no se pueden anular ni editar movimientos (sí desde la pantalla Movimientos). Se podría agregar con confirmación obligatoria.
 - El historial de la conversación vive en la pestaña del navegador y se pierde al recargar.
-- El plan gratuito de Render suspende el backend tras 15 minutos sin uso, y la base gratuita vence a los 30 días.
+- El plan gratuito de Render suspende el backend tras 15 minutos sin uso, y la base gratuita vence a los 30 días de su creación (alrededor del 20/12/2026). Para seguir usándola hay que crear una base nueva y actualizar `DATABASE_URL`.
 - El nivel gratuito de Gemini limita la cantidad de pedidos por minuto.
 - Las funcionalidades de P1 y P2.
 
