@@ -8,7 +8,7 @@ from alembic import context
 from dotenv import load_dotenv
 
 from app.database import Base
-from app.models import User, Account, Category, Transaction
+from app.models import User, Account, Category, Transaction, AuditLog
 
 
 # Carga las variables definidas en el archivo .env

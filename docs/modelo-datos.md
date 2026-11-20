@@ -174,6 +174,26 @@ Los movimientos no se eliminaran fisicamente como mecanismo habitual de correcci
 
 ---
 
+### audit_logs
+
+Registro de cada mensaje procesado por el chat.
+
+| Campo | Tipo | Restricciones |
+|---|---|---|
+| id | INTEGER | PK |
+| user_id | INTEGER | FK → users.id, NOT NULL, indice |
+| created_at | TIMESTAMP | NOT NULL |
+| message | TEXT | NOT NULL. Mensaje original del usuario |
+| actions | JSON | NOT NULL. Tools pedidas por la IA, parametros y decision del backend |
+| transaction_id | INTEGER | NULL. Movimiento generado, si lo hubo |
+| reply | TEXT | NOT NULL. Respuesta enviada al usuario |
+| llm_error | BOOLEAN | NOT NULL. Indica si el proveedor de IA fallo |
+
+Permite mostrar en la defensa que la IA interpreta, pero el sistema controla y deja trazabilidad.
+No guarda contraseñas, tokens ni API keys.
+
+---
+
 ## Relaciones
 
 Las relaciones principales son:

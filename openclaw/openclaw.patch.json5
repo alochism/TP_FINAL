@@ -1,0 +1,54 @@
+// Parche de configuracion para OpenClaw. NO es el archivo de config completo:
+// se aplica con `openclaw config patch --file .\openclaw.patch.json5`
+// (probar antes con --dry-run).
+// Reemplazar RUTA_PROYECTO por la ruta absoluta del repo en tu maquina (ver README.md).
+// No contiene secretos: las variables ${...} se leen del entorno donde corre el gateway.
+{
+  agents: {
+    defaults: {
+      workspace: "RUTA_PROYECTO/openclaw/workspace",
+    },
+    entries: {
+      finanzas_personales: {
+        workspace: "RUTA_PROYECTO/openclaw/workspace",
+      },
+    },
+  },
+
+  // Endpoint HTTP compatible con OpenAI. Lo usa POST /chat del backend:
+  // el backend envia las tools y las ejecuta con el usuario autenticado por JWT.
+  gateway: {
+    http: {
+      endpoints: {
+        chatCompletions: { enabled: true },
+      },
+    },
+  },
+
+  // Solo tools de finanzas. Nada de shell, archivos ni navegador.
+  tools: {
+    profile: "minimal",
+    alsoAllow: ["bundle-mcp"],
+    deny: ["group:runtime", "group:fs", "browser", "canvas"],
+  },
+
+  // Servidor MCP: alternativa SOLO para desarrollo desde la consola de OpenClaw
+  // (usa un usuario fijo). Para el canal web no hace falta.
+  mcp: {
+    servers: {
+      finanzas: {
+        command: "RUTA_PROYECTO/openclaw/tools-mcp/.venv/Scripts/python.exe",
+        args: ["server.py"],
+        cwd: "RUTA_PROYECTO/openclaw/tools-mcp",
+        env: {
+          BACKEND_URL: "http://localhost:8000",
+          AGENT_USER_EMAIL: "${AGENT_USER_EMAIL}",
+          AGENT_USER_PASSWORD: "${AGENT_USER_PASSWORD}",
+        },
+      },
+    },
+  },
+
+  // El modelo NO va aca: se elige con `openclaw models set <proveedor/modelo>`
+  // y la clave va en una variable de entorno, asi cada integrante usa su LLM.
+}

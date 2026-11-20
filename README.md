@@ -351,10 +351,11 @@ El diseño completo, tipos de datos, claves primarias, claves foráneas, índice
 | Migraciones | Alembic | Versionado del esquema |
 | Autenticación | JWT | Identificación de usuarios |
 | Testing | pytest | Pruebas unitarias y de integración |
-| Contenedores | Docker | Entorno reproducible |
+| Proveedor de IA | Gemini Flash (`gemini-flash-latest`) | Modelo usado en el despliegue (API compatible con OpenAI) |
+| Despliegue | Render | PostgreSQL, backend y frontend online (`render.yaml`) |
 | Control de versiones | Git + GitHub | Versionado y colaboración |
 
-El proveedor de LLM y el servicio de despliegue se definirán durante la implementación en función de compatibilidad, costo y requisitos técnicos.
+El backend se comunica con la IA mediante el formato de Chat Completions de OpenAI. Así, el mismo código funciona con el gateway de OpenClaw en desarrollo y con Gemini en el despliegue, y se puede cambiar de proveedor sin modificar la lógica financiera. Docker se descartó porque el despliegue en Render no lo requiere.
 
 ---
 
@@ -372,6 +373,18 @@ Debido a que el sistema manejará información financiera personal, se establece
 - se minimiza la información enviada al proveedor del LLM;
 - los logs no deben almacenar contraseñas, tokens ni credenciales;
 - ante una falla del servicio de IA no debe ejecutarse ninguna modificación financiera.
+
+### Tratamiento de la información
+
+| Pregunta | Decisión |
+|---|---|
+| ¿Qué se almacena? | Usuarios (email y hash de contraseña), cuentas, movimientos y la auditoría de cada mensaje del chat. |
+| ¿Qué se envía al proveedor de IA? | El mensaje, el historial de texto de la conversación y los resultados de las tools (nombres de cuentas, categorías y montos). Nunca el email, la contraseña ni el token. |
+| ¿Se conserva el mensaje original? | Sí, en `audit_logs`, para trazabilidad. |
+| ¿Cómo se manejan las credenciales? | Variables de entorno (`.env.example` documenta cuáles); no se versionan. |
+| ¿Cómo se separan los usuarios? | El backend toma el usuario del JWT y filtra cada consulta por ese usuario. La IA no recibe ni elige el usuario. |
+| ¿Qué pasa si el LLM no responde? | Ante saturación (503/429) o demora mayor a 20 segundos se reintenta una vez y se pasa a un modelo de respaldo. Si igual falla, no se modifica nada, se informa al usuario y se registra con `llm_error`. |
+| ¿Qué aparece en los logs? | Mensaje, operación interpretada, decisión del backend y movimiento generado. Sin contraseñas, tokens ni API keys. |
 
 ---
 
@@ -417,6 +430,13 @@ Una de las métricas principales será:
 
 Además se realizarán pruebas unitarias y de integración sobre las reglas determinísticas del backend.
 
+### Implementación
+
+- **Set de frases:** 60 casos en [`backend/evaluacion/casos.json`](backend/evaluacion/casos.json), cada uno con su resultado esperado (`registra`, `pregunta`, `rechaza`, `consulta` o `sin_accion`).
+- **Evaluación:** `python evaluacion/evaluar.py --url <backend>` envía cada frase a `POST /chat` y genera [`docs/evaluacion-nl.md`](docs/evaluacion-nl.md) con la métrica principal.
+- **Resultado:** en la segunda corrida contra el despliegue, 58 de 60 casos correctos (97 %) y 1 operación incorrecta ejecutada sin aclaración. Detalle y mejoras aplicadas en [`docs/evaluacion-nl.md`](docs/evaluacion-nl.md).
+- **Tests automáticos:** 42 tests con pytest (`backend/tests/`), incluidos los del chat con la IA simulada: aislamiento entre usuarios, una escritura por mensaje, monto inválido y falla del proveedor.
+
 ---
 
 ## Estructura del repositorio
@@ -424,23 +444,26 @@ Además se realizarán pruebas unitarias y de integración sobre las reglas dete
 ```text
 TP_FINAL/
 ├── backend/
-│   ├── app/
-│   ├── alembic/
+│   ├── app/            (API, reglas de negocio, agente y chat)
+│   ├── alembic/        (migraciones)
+│   ├── evaluacion/     (frases de prueba y script de evaluación)
+│   ├── tests/
 │   └── requirements.txt
 │
+├── frontend/           (React + Vite)
+├── openclaw/           (configuración del agente, skill y servidor MCP)
 ├── database/
-│   └── README.md
-│
 ├── docs/
-│   ├── images/
 │   ├── arquitectura.md
 │   ├── modelo-datos.md
 │   ├── modulos.md
 │   ├── tools.md
-│   └── validacion-usuarios.md
+│   ├── validacion-usuarios.md
+│   ├── evaluacion-nl.md
+│   ├── informe-final.md
+│   └── guion-video.md
 │
-├── frontend/
-│
+├── render.yaml         (despliegue)
 └── README.md
 ```
 
@@ -450,7 +473,11 @@ Contiene el backend de la aplicación y el versionado del esquema mediante Alemb
 
 ### `/frontend`
 
-Reservado para la interfaz web desarrollada con React.
+Interfaz web desarrollada con React: login, registro, asistente (chat), cuentas, movimientos y resumen por categoría.
+
+### `/openclaw`
+
+Configuración del agente en OpenClaw: identidad, reglas, skill `finanzas` y un servidor MCP para pruebas desde la consola.
 
 ### `/database`
 
@@ -543,25 +570,76 @@ Respuesta
 
 ---
 
+## Instalación y ejecución local
+
+Requisitos: Python 3.12+, Node.js 20+ y PostgreSQL.
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate          # Windows (en Linux/macOS: source .venv/bin/activate)
+pip install -r requirements-dev.txt
+copy .env.example .env           # completar DATABASE_URL, JWT_SECRET_KEY y LLM_*
+alembic upgrade head
+python -m app.seed
+uvicorn app.main:app --reload
+```
+
+La documentación interactiva de la API queda en `http://127.0.0.1:8000/docs`.
+
+Tests: `pytest` (usan SQLite en memoria y una IA simulada; no requieren PostgreSQL ni API key).
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+La aplicación queda en `http://localhost:5173`. En desarrollo, Vite reenvía `/api` al backend.
+
+### Proveedor de IA
+
+En `backend/.env`:
+
+- **Gemini:** `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`, `LLM_MODEL=gemini-flash-latest` y la API key de Google AI Studio.
+- **OpenClaw:** ver [`openclaw/README.md`](openclaw/README.md).
+
+---
+
+## Despliegue
+
+El sistema completo está desplegado en Render a partir de [`render.yaml`](render.yaml):
+
+| Componente | URL |
+|---|---|
+| Aplicación web | https://finanzas-tpfinal-web.onrender.com |
+| API (Swagger) | https://finanzas-tpfinal-api.onrender.com/docs |
+| Base de datos | PostgreSQL administrado por Render |
+
+Al iniciar, el backend aplica las migraciones y carga las categorías. En el plan gratuito el backend se suspende tras 15 minutos sin uso: el primer pedido puede tardar cerca de un minuto.
+
+---
+
 ## Estado actual
 
-El proyecto se encuentra en desarrollo dentro del marco del **Trabajo Final de la Tecnicatura Universitaria en Programación**.
+Alcance P0 implementado:
 
-Actualmente se encuentran definidos:
+- registro, inicio de sesión y aislamiento de datos por usuario;
+- cuentas, categorías predefinidas, gastos e ingresos;
+- anulación lógica de movimientos y desactivación de cuentas, con confirmación;
+- consultas de saldo, movimientos y gastos por categoría;
+- canal conversacional web (`POST /chat`) con interpretación de lenguaje natural, detección de información faltante y repreguntas;
+- validaciones determinísticas en el backend;
+- auditoría de cada mensaje;
+- integración con OpenClaw y con Gemini;
+- tests automáticos y evaluación con 60 frases;
+- despliegue online.
 
-- problema y usuario objetivo;
-- validación inicial con usuarios;
-- alcance P0, P1 y P2;
-- arquitectura general;
-- módulos funcionales;
-- modelo de datos;
-- tecnologías principales;
-- contratos iniciales de tools;
-- criterios de seguridad;
-- estrategia inicial de pruebas;
-- estructura del repositorio.
-
-La documentación se actualizará progresivamente a medida que avance la implementación y se incorporen las devoluciones del tutor.
+El informe final está en [`docs/informe-final.md`](docs/informe-final.md).
 
 ---
 
