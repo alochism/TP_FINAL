@@ -460,8 +460,7 @@ TP_FINAL/
 │   ├── tools.md
 │   ├── validacion-usuarios.md
 │   ├── evaluacion-nl.md
-│   ├── informe-final.md
-│   └── guion-video.md
+│   └── informe-final.md
 │
 ├── render.yaml         (despliegue)
 └── README.md
