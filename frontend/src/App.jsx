@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { Layout } from './components/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AccountsPage } from './pages/AccountsPage'
+import { ChatPage } from './pages/ChatPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { SummaryPage } from './pages/SummaryPage'
@@ -17,13 +18,14 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
+          <Route path="/chat" element={<ChatPage />} />
           <Route path="/cuentas" element={<AccountsPage />} />
           <Route path="/movimientos" element={<TransactionsPage />} />
           <Route path="/resumen" element={<SummaryPage />} />
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/cuentas" replace />} />
+      <Route path="*" element={<Navigate to="/chat" replace />} />
     </Routes>
   )
 }

@@ -5,6 +5,7 @@ Interfaz web de la Plataforma Conversacional de Finanzas Personales, desarrollad
 ## Pantallas
 
 - Inicio de sesion y registro de usuarios.
+- Asistente: chat en lenguaje natural para registrar gastos e ingresos y hacer consultas (`POST /chat`).
 - Cuentas: listado con saldo actual, saldo total y alta de cuentas.
 - Movimientos: registro de gastos e ingresos mediante formulario e historial con filtros.
 - Resumen: gastos por categoria en un periodo.

@@ -23,7 +23,7 @@ export function RegisterPage() {
 
     try {
       await register(email, password)
-      navigate('/cuentas')
+      navigate('/chat')
     } catch (err) {
       setError(err.message)
     } finally {

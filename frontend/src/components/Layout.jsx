@@ -18,6 +18,7 @@ export function Layout() {
         <span className="brand">Finanzas Personales</span>
 
         <nav className="nav">
+          <NavLink to="/chat">Asistente</NavLink>
           <NavLink to="/cuentas">Cuentas</NavLink>
           <NavLink to="/movimientos">Movimientos</NavLink>
           <NavLink to="/resumen">Resumen</NavLink>
