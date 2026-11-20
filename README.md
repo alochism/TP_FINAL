@@ -652,6 +652,24 @@ El informe final está en [`docs/informe-final.md`](docs/informe-final.md).
 
 **Tutor:** Oscar Londero
 
+### Experiencia previa del equipo
+
+Nivel de cada integrante con las tecnologías del proyecto al momento de definir el stack:
+
+| Tecnología | Aguilar | Alochis | Zupan |
+|---|---|---|---|
+| Python | Avanzado | Intermedio | Inicial |
+| FastAPI | Intermedio | Inicial | Inicial |
+| PostgreSQL | Intermedio | Inicial | Intermedio |
+| React | Inicial | Inicial | Intermedio |
+| Docker | Inicial | Inicial | Inicial |
+| OpenClaw | Inicial | Inicial | Inicial |
+| Integración con LLM | Intermedio | Intermedio | Inicial |
+
+Escala: **Inicial** (conocimientos introductorios o poca experiencia práctica), **Intermedio** (puede desarrollar funcionalidades con documentación y apoyo puntual), **Avanzado** (trabaja de forma autónoma y resuelve los problemas habituales).
+
+Esta matriz se usó para acotar el stack: se descartaron Redis y Docker, donde todo el equipo tenía nivel inicial y no eran necesarios para el P0, y se concentró el aprendizaje nuevo en OpenClaw, la única tecnología central que nadie conocía.
+
 ---
 
 ## Licencia

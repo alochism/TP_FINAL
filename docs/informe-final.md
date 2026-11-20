@@ -190,7 +190,7 @@ Todo el sistema está online en Render, definido en [`render.yaml`](../render.ya
 | 1 | Definir el problema | Problema, usuario objetivo y encuesta a 47 personas (sección 2) |
 | 2 | Qué es una transferencia | Las cuentas son informativas; las transferencias quedan para P1 |
 | 3 | Stack creciendo | Se descartaron Redis, colas, jobs, Docker y canales extra |
-| 4 | Nivel del equipo | Matriz de experiencia en la propuesta del proyecto |
+| 4 | Nivel del equipo | Matriz de experiencia en el README (sección "Equipo"), usada para descartar Redis y Docker |
 | 5 | Un solo canal | Solo web |
 | 6 | Ambigüedades | `needs_info` con datos faltantes y opciones; repreguntas |
 | 7 | No confiar en "confidence" | Reglas determinísticas en el backend (sección 6) |
