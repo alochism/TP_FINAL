@@ -99,6 +99,7 @@ Las reglas son determinísticas y están en el backend. No se usa un "confidence
 | Cuenta ambigua (coincide con varias) | `needs_info` con `ACCOUNT_AMBIGUOUS` |
 | Categoría no identificable | `needs_info`: se ofrecen las categorías |
 | Fecha futura o inválida | `rejected` |
+| Moneda distinta de ARS | `rejected` (`UNSUPPORTED_CURRENCY`) |
 | Fecha no mencionada | Se registra con la fecha de hoy |
 | Más de una escritura en el mismo mensaje | La segunda se rechaza (`ONE_WRITE_PER_MESSAGE`) |
 | IA saturada, sin cuota o lenta (503/429/timeout) | Un reintento y, si sigue, modelo de respaldo |
@@ -139,10 +140,10 @@ Cada mensaje genera un registro con el usuario, la fecha y hora, el mensaje orig
 
 ### Tests automáticos
 
-40 tests con pytest (`backend/tests/`), sobre SQLite en memoria:
+42 tests con pytest (`backend/tests/`), sobre SQLite en memoria:
 
 - autenticación, cuentas, movimientos y consultas;
-- reglas de negocio: montos inválidos, cuentas de otro usuario, categorías de tipo incorrecto, anulación de movimientos y desactivación de cuentas;
+- reglas de negocio: moneda distinta de ARS, montos inválidos, cuentas de otro usuario, categorías de tipo incorrecto, anulación de movimientos y desactivación de cuentas;
 - cliente de IA: reintentos ante errores transitorios y modelo de respaldo;
 - chat con la IA simulada: registro correcto, cuenta faltante, una sola escritura por mensaje, cuentas de otro usuario, monto inválido, falla del proveedor y proveedor no configurado.
 

@@ -168,3 +168,29 @@ def test_tool_uses_today_when_date_is_missing(client, create_user, create_accoun
         "amount": 1000, "category": "Transporte", "account": "Efectivo"}, headers=headers)
 
     assert response.json()["status"] == "ok"
+
+
+def test_chat_rejects_other_currency(client, db, create_user, create_account, fake_llm):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+    fake_llm(
+        {"content": None, "tool_calls": [tool_call("create_expense", {
+            "amount": 50, "currency": "USD", "category": "Educación", "account": "Efectivo"})]},
+        {"content": "Por ahora solo registro movimientos en pesos."},
+    )
+
+    response = client.post("/chat", json={"message": "Gasté 50 dólares en un libro con efectivo"},
+                           headers=headers)
+
+    assert response.json()["actions"][0]["code"] == "UNSUPPORTED_CURRENCY"
+    assert db.query(Transaction).count() == 0
+
+
+def test_tools_offer_only_existing_categories(db):
+    from app.agent.tools import build_tool_definitions
+
+    tools = {t["function"]["name"]: t for t in build_tool_definitions(db)}
+    expense_categories = tools["create_expense"]["function"]["parameters"]["properties"]["category"]["enum"]
+
+    assert "Alimentación" in expense_categories
+    assert "Sueldo" not in expense_categories

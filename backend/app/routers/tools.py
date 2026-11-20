@@ -117,10 +117,18 @@ class MovementIn(BaseModel):
     category: str | None = None
     account: str | None = None
     description: str | None = Field(default=None, max_length=200)
+    # Moneda mencionada por el usuario. En P0 solo se admite ARS
+    currency: str | None = Field(default=None, max_length=10)
 
 
 def _create(kind: str, body: MovementIn, db: Session, user: User):
     # 1) Rechazos: dato presente pero invalido
+    if body.currency and _norm(body.currency) not in {"ars", "pesos", "peso", "$"}:
+        return _env(
+            "rejected", "UNSUPPORTED_CURRENCY",
+            hint="Por ahora solo se registran movimientos en pesos argentinos (ARS). No se registro nada.",
+        )
+
     amount = None
     if body.amount is not None:
         try:

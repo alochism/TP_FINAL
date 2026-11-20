@@ -93,10 +93,11 @@ def chat(
 
     write_done = False
     reply = None
+    tool_definitions = agent_tools.build_tool_definitions(db)
 
     try:
         for _ in range(MAX_ROUNDS):
-            answer = llm.chat_completion(messages, agent_tools.TOOL_DEFINITIONS)
+            answer = llm.chat_completion(messages, tool_definitions)
             tool_calls = answer.get("tool_calls") or []
 
             if not tool_calls:

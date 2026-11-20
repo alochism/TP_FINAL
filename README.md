@@ -434,7 +434,7 @@ Además se realizarán pruebas unitarias y de integración sobre las reglas dete
 
 - **Set de frases:** 60 casos en [`backend/evaluacion/casos.json`](backend/evaluacion/casos.json), cada uno con su resultado esperado (`registra`, `pregunta`, `rechaza`, `consulta` o `sin_accion`).
 - **Evaluación:** `python evaluacion/evaluar.py --url <backend>` envía cada frase a `POST /chat` y genera [`docs/evaluacion-nl.md`](docs/evaluacion-nl.md) con la métrica principal.
-- **Tests automáticos:** 40 tests con pytest (`backend/tests/`), incluidos los del chat con la IA simulada: aislamiento entre usuarios, una escritura por mensaje, monto inválido y falla del proveedor.
+- **Tests automáticos:** 42 tests con pytest (`backend/tests/`), incluidos los del chat con la IA simulada: aislamiento entre usuarios, una escritura por mensaje, monto inválido y falla del proveedor.
 
 ---
 
