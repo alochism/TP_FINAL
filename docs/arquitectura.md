@@ -118,9 +118,9 @@ El proveedor se elige con `LLM_BASE_URL`, `LLM_API_KEY` y `LLM_MODEL`:
 | Entorno | Proveedor | Motivo |
 |---|---|---|
 | Desarrollo local | Gateway de OpenClaw | Orquestacion del agente con su skill y sus reglas |
-| Despliegue online | Gemini 2.5 Flash (API directa) | El gateway de OpenClaw no corre en el plan gratuito de Render |
+| Despliegue online | Gemini Flash (API directa, modelo `gemini-flash-latest`) | El gateway de OpenClaw no corre en el plan gratuito de Render |
 
-Cambiar de proveedor no modifica la logica financiera. Gemini 2.5 Flash se eligio
+Cambiar de proveedor no modifica la logica financiera. Gemini Flash se eligio
 por tener un nivel gratuito suficiente para el TPF, baja latencia y soporte de tool calling.
 
 ---
@@ -170,7 +170,7 @@ El detalle de las operaciones disponibles para la comunicacion entre el agente y
 | Migraciones | Alembic |
 | Autenticacion | JWT |
 | Testing | pytest |
-| Proveedor de IA | Gemini 2.5 Flash (API compatible con OpenAI) |
+| Proveedor de IA | Gemini Flash, modelo `gemini-flash-latest` (API compatible con OpenAI) |
 | Control de versiones | Git + GitHub |
 | Despliegue | Render (PostgreSQL, backend y frontend) |
 

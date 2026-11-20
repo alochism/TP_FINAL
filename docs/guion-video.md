@@ -54,7 +54,7 @@ Every message is audited: the original text, what the model understood, what the
 
 *Run pytest; open docs/evaluacion-nl.md.*
 
-"We have 35 automated tests, including the chat with a simulated model. We also built a set of 60 real-life phrases with their expected results: complete, incomplete, invalid, queries and out-of-scope requests. Our main metric is how many wrong operations were executed without asking for clarification."
+"We have 39 automated tests, including the chat with a simulated model. We also built a set of 60 real-life phrases with their expected results: complete, incomplete, invalid, queries and out-of-scope requests. Our main metric is how many wrong operations were executed without asking for clarification."
 
 ## 7. Deployment and closing — 30 s (Alochis)
 

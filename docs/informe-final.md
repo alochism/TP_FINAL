@@ -66,7 +66,7 @@ Detalle completo en [`arquitectura.md`](arquitectura.md).
 
 1. **La interfaz web habla solo con el backend.** El chat entra por `POST /chat` con el JWT del usuario. El backend envía el mensaje y la definición de las tools a la IA, recibe la tool elegida y la ejecuta él mismo. La IA nunca recibe ni elige el usuario, y por eso el aislamiento entre usuarios no depende del modelo.
 2. **Tools con contrato fijo** ([`tools.md`](tools.md)): `create_expense`, `create_income`, `get_balance`, `get_transactions` y `get_expenses_by_category`. Responden siempre con un sobre `status` (`ok`, `needs_info`, `rejected`), `code`, `missing_fields` y `options`.
-3. **Proveedor de IA reemplazable.** El backend usa el formato de Chat Completions de OpenAI. El mismo código funciona con el gateway de OpenClaw (desarrollo local) y con **Gemini 2.5 Flash** (despliegue). Cambiar de proveedor es cambiar tres variables de entorno.
+3. **Proveedor de IA reemplazable.** El backend usa el formato de Chat Completions de OpenAI. El mismo código funciona con el gateway de OpenClaw (desarrollo local) y con **Gemini Flash** en el despliegue (modelo `gemini-flash-latest`, que apunta siempre a la versión vigente). Cambiar de proveedor es cambiar tres variables de entorno.
 4. **OpenClaw como orquestador** del agente: identidad, reglas y skill `finanzas`. En el despliegue se usa Gemini directo porque el gateway de OpenClaw necesita un proceso persistente que el plan gratuito de Render no ofrece.
 5. **Stack acotado.** Siguiendo la devolución, se descartaron Redis, colas, jobs, Docker y canales adicionales. El contexto conversacional lo envía la interfaz como historial de texto, y las operaciones se deciden de nuevo en cada mensaje.
 
@@ -101,6 +101,7 @@ Las reglas son determinísticas y están en el backend. No se usa un "confidence
 | Fecha futura o inválida | `rejected` |
 | Fecha no mencionada | Se registra con la fecha de hoy |
 | Más de una escritura en el mismo mensaje | La segunda se rechaza (`ONE_WRITE_PER_MESSAGE`) |
+| IA saturada o sin cuota (503/429) | Dos reintentos y, si sigue, modelo de respaldo |
 | IA caída, lenta o con respuesta inválida | No se modifica nada y se informa |
 | Usuario no autenticado | HTTP 401/403 |
 | Anular un movimiento o desactivar una cuenta | Solo desde la interfaz, con confirmación explícita; se conserva el registro |
@@ -138,10 +139,11 @@ Cada mensaje genera un registro con el usuario, la fecha y hora, el mensaje orig
 
 ### Tests automáticos
 
-35 tests con pytest (`backend/tests/`), sobre SQLite en memoria:
+39 tests con pytest (`backend/tests/`), sobre SQLite en memoria:
 
 - autenticación, cuentas, movimientos y consultas;
 - reglas de negocio: montos inválidos, cuentas de otro usuario, categorías de tipo incorrecto, anulación de movimientos y desactivación de cuentas;
+- cliente de IA: reintentos ante errores transitorios y modelo de respaldo;
 - chat con la IA simulada: registro correcto, cuenta faltante, una sola escritura por mensaje, cuentas de otro usuario, monto inválido, falla del proveedor y proveedor no configurado.
 
 ### Evaluación del lenguaje natural
@@ -185,7 +187,7 @@ Todo el sistema está online en Render, definido en [`render.yaml`](../render.ya
 | 10 | Recurrentes | Fuera del P0 (P1) |
 | 11 | Auditoría | Tabla `audit_logs` (sección 8) |
 | 12 | Seguridad y privacidad | Sección 7 y tabla en el README |
-| 13 | Proveedor y modelo | Gemini 2.5 Flash, reemplazable por configuración; timeout y fallback |
+| 13 | Proveedor y modelo | Gemini Flash (`gemini-flash-latest`), reemplazable por configuración; timeout y fallback |
 | 14 | Pruebas serias de interpretación | 60 frases con resultado esperado y métrica (sección 9) |
 | 15 | Prueba técnica mínima | Flujo completo mensaje → IA → tool → validación → PostgreSQL → respuesta |
 

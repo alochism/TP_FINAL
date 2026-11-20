@@ -351,7 +351,7 @@ El diseño completo, tipos de datos, claves primarias, claves foráneas, índice
 | Migraciones | Alembic | Versionado del esquema |
 | Autenticación | JWT | Identificación de usuarios |
 | Testing | pytest | Pruebas unitarias y de integración |
-| Proveedor de IA | Gemini 2.5 Flash | Modelo usado en el despliegue (API compatible con OpenAI) |
+| Proveedor de IA | Gemini Flash (`gemini-flash-latest`) | Modelo usado en el despliegue (API compatible con OpenAI) |
 | Despliegue | Render | PostgreSQL, backend y frontend online (`render.yaml`) |
 | Control de versiones | Git + GitHub | Versionado y colaboración |
 
@@ -383,7 +383,7 @@ Debido a que el sistema manejará información financiera personal, se establece
 | ¿Se conserva el mensaje original? | Sí, en `audit_logs`, para trazabilidad. |
 | ¿Cómo se manejan las credenciales? | Variables de entorno (`.env.example` documenta cuáles); no se versionan. |
 | ¿Cómo se separan los usuarios? | El backend toma el usuario del JWT y filtra cada consulta por ese usuario. La IA no recibe ni elige el usuario. |
-| ¿Qué pasa si el LLM no responde? | Se corta por timeout, no se modifica nada, se informa al usuario y se registra con `llm_error`. |
+| ¿Qué pasa si el LLM no responde? | Ante saturación (503/429) se reintenta dos veces y se pasa a un modelo de respaldo. Si igual falla o vence el timeout, no se modifica nada, se informa al usuario y se registra con `llm_error`. |
 | ¿Qué aparece en los logs? | Mensaje, operación interpretada, decisión del backend y movimiento generado. Sin contraseñas, tokens ni API keys. |
 
 ---
@@ -434,7 +434,7 @@ Además se realizarán pruebas unitarias y de integración sobre las reglas dete
 
 - **Set de frases:** 60 casos en [`backend/evaluacion/casos.json`](backend/evaluacion/casos.json), cada uno con su resultado esperado (`registra`, `pregunta`, `rechaza`, `consulta` o `sin_accion`).
 - **Evaluación:** `python evaluacion/evaluar.py --url <backend>` envía cada frase a `POST /chat` y genera [`docs/evaluacion-nl.md`](docs/evaluacion-nl.md) con la métrica principal.
-- **Tests automáticos:** 35 tests con pytest (`backend/tests/`), incluidos los del chat con la IA simulada: aislamiento entre usuarios, una escritura por mensaje, monto inválido y falla del proveedor.
+- **Tests automáticos:** 39 tests con pytest (`backend/tests/`), incluidos los del chat con la IA simulada: aislamiento entre usuarios, una escritura por mensaje, monto inválido y falla del proveedor.
 
 ---
 
@@ -604,7 +604,7 @@ La aplicación queda en `http://localhost:5173`. En desarrollo, Vite reenvía `/
 
 En `backend/.env`:
 
-- **Gemini:** `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`, `LLM_MODEL=gemini-2.5-flash` y la API key de Google AI Studio.
+- **Gemini:** `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`, `LLM_MODEL=gemini-flash-latest` y la API key de Google AI Studio.
 - **OpenClaw:** ver [`openclaw/README.md`](openclaw/README.md).
 
 ---
