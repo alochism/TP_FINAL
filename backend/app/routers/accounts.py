@@ -70,6 +70,36 @@ def get_accounts(
         .all()
     )
 
+@router.patch(
+    "/{account_id}/deactivate",
+    response_model=AccountResponse
+)
+def deactivate_account(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    # Desactivacion logica: la cuenta y sus movimientos se conservan,
+    # pero ya no se puede usar para registrar movimientos
+    account = db.get(Account, account_id)
+
+    if (
+        account is None
+        or account.user_id != current_user.id
+        or not account.active
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cuenta no encontrada"
+        )
+
+    account.active = False
+    db.commit()
+    db.refresh(account)
+
+    return account
+
+
 @router.get("/balance")
 def get_balance(
     db: Annotated[Session, Depends(get_db)],

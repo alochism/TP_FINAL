@@ -74,6 +74,24 @@ export function TransactionsPage() {
       .finally(() => setLoading(false))
   }, [filters])
 
+  // Anulacion logica: el movimiento se conserva y deja de contar en los saldos.
+  // Al ser una operacion destructiva se pide confirmacion siempre
+  async function handleVoid(transaction) {
+    const confirmed = window.confirm(
+      `¿Anular el movimiento de ${formatCurrency(transaction.amount)} del ${formatDate(transaction.date)}? ` +
+        'Dejará de contar en los saldos.'
+    )
+
+    if (!confirmed) return
+
+    try {
+      const updated = await apiRequest(`/transactions/${transaction.id}/void`, { method: 'PATCH' })
+      setTransactions((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   function getAccountName(accountId) {
     const account = accounts.find((item) => item.id === accountId)
     return account ? account.name : '-'
@@ -292,11 +310,12 @@ export function TransactionsPage() {
               <th>Cuenta</th>
               <th>Descripción</th>
               <th className="amount">Monto</th>
+              <th>Estado</th>
             </tr>
           </thead>
           <tbody>
             {transactions.map((transaction) => (
-              <tr key={transaction.id}>
+              <tr key={transaction.id} className={transaction.status === 'VOIDED' ? 'voided' : ''}>
                 <td>{formatDate(transaction.date)}</td>
                 <td>{TRANSACTION_TYPES[transaction.type]}</td>
                 <td>{getCategoryName(transaction.category_id)}</td>
@@ -305,6 +324,15 @@ export function TransactionsPage() {
                 <td className={`amount ${transaction.type === 'INCOME' ? 'income' : 'expense'}`}>
                   {transaction.type === 'INCOME' ? '+ ' : '- '}
                   {formatCurrency(transaction.amount)}
+                </td>
+                <td>
+                  {transaction.status === 'VOIDED' ? (
+                    'Anulado'
+                  ) : (
+                    <button type="button" className="button-secondary button-small" onClick={() => handleVoid(transaction)}>
+                      Anular
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

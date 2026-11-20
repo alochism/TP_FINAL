@@ -48,3 +48,35 @@ def test_user_only_sees_own_accounts(client, create_user, create_account):
     names = [account["name"] for account in response.json()]
 
     assert names == ["Cuenta de Ana"]
+
+
+def test_deactivated_account_is_hidden_and_cannot_be_used(client, create_user, create_account, category_id):
+    headers = create_user()
+    account = create_account(headers)
+
+    response = client.patch(f"/accounts/{account['id']}/deactivate", headers=headers)
+    expense = client.post(
+        "/transactions/expense",
+        json={
+            "account_id": account["id"],
+            "category_id": category_id("Transporte", "EXPENSE"),
+            "amount": 1000,
+            "date": "2026-11-10"
+        },
+        headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["active"] is False
+    assert client.get("/accounts", headers=headers).json() == []
+    assert expense.status_code == 404
+
+
+def test_cannot_deactivate_account_of_another_user(client, create_user, create_account):
+    owner = create_user(email="bruno.salas@correo.com")
+    account = create_account(owner)
+    headers = create_user()
+
+    response = client.patch(f"/accounts/{account['id']}/deactivate", headers=headers)
+
+    assert response.status_code == 404

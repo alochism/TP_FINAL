@@ -78,6 +78,23 @@ export function AccountsPage() {
     }
   }
 
+  // Desactivacion logica: la cuenta deja de aparecer y no se puede usar,
+  // pero sus movimientos se conservan. Se pide confirmacion siempre
+  async function handleDeactivate(account) {
+    const confirmed = window.confirm(
+      `¿Desactivar la cuenta "${account.name}"? No se podrá usar para registrar movimientos.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      await apiRequest(`/accounts/${account.id}/deactivate`, { method: 'PATCH' })
+      showData(await fetchAccountsData())
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   return (
     <section>
       <h1>Cuentas</h1>
@@ -102,6 +119,7 @@ export function AccountsPage() {
               <th>Tipo</th>
               <th className="amount">Saldo inicial</th>
               <th className="amount">Saldo actual</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -111,6 +129,11 @@ export function AccountsPage() {
                 <td>{ACCOUNT_TYPES[account.type]}</td>
                 <td className="amount">{formatCurrency(account.initial_balance)}</td>
                 <td className="amount">{formatCurrency(account.balance)}</td>
+                <td>
+                  <button type="button" className="button-secondary button-small" onClick={() => handleDeactivate(account)}>
+                    Desactivar
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
