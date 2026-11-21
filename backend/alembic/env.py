@@ -1,18 +1,18 @@
-from logging.config import fileConfig
 import os
-
+from app.database import Base
+from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
 from alembic import context
 from dotenv import load_dotenv
-
 from app.database import Base
 from app.models import User, Account, Category, Transaction, AuditLog
 
 
 # Carga las variables definidas en el archivo .env
-load_dotenv()
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 database_url = os.getenv("DATABASE_URL")
 
