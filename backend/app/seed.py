@@ -3,12 +3,12 @@ from app.models import Category
 
 CATEGORIES = [
     # Gastos
-    {"name": "Alimentacion", "type": "EXPENSE"},
+    {"name": "Alimentación", "type": "EXPENSE"},
     {"name": "Transporte", "type": "EXPENSE"},
     {"name": "Servicios", "type": "EXPENSE"},
     {"name": "Vivienda", "type": "EXPENSE"},
     {"name": "Salud", "type": "EXPENSE"},
-    {"name": "Educacion", "type": "EXPENSE"},
+    {"name": "Educación", "type": "EXPENSE"},
     {"name": "Entretenimiento", "type": "EXPENSE"},
     {"name": "Compras", "type": "EXPENSE"},
     {"name": "Otros", "type": "EXPENSE"},
