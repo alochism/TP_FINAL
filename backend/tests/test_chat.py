@@ -279,3 +279,163 @@ def test_chat_rejects_invalid_movement_without_saving(
     assert body["actions"][0]["code"] == expected_code
     assert body["transaction_id"] is None
     assert db.query(Transaction).count() == 0
+
+
+def test_chat_asks_category_for_ambiguous_expense(
+    client, db, create_user, create_account, fake_llm
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    # Simulamos que Gemini interpreta incorrectamente
+    # un gasto ambiguo como categoria Otros.
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [
+                tool_call("create_expense", {
+                    "amount": 3000,
+                    "account": "Efectivo",
+                    "category": "Otros",
+                    "description": "algo"
+                })
+            ]
+        },
+        {
+            "content": "¿En qué categoría querés registrar el gasto?"
+        }
+    )
+
+    response = client.post(
+        "/chat",
+        json={"message": "Gasté 3000 en algo con efectivo"},
+        headers=headers
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["transaction_id"] is None
+    assert body["actions"][0]["status"] == "needs_info"
+    assert body["actions"][0]["code"] == "CATEGORY_UNRESOLVED"
+    assert "category" in body["actions"][0]["missing_fields"]
+
+    # No debe registrarse ningun movimiento
+    assert db.query(Transaction).count() == 0
+
+
+@pytest.mark.parametrize("message,category", [
+    (
+        "Gasté 3000 en algo con efectivo, ponelo en Otros",
+        "Otros"
+    ),
+    (
+        "Gasté 3000 en supermercado con efectivo",
+        "Alimentación"
+    ),
+])
+def test_chat_allows_valid_expenses(
+    client, db, create_user, create_account,
+    fake_llm, message, category
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [
+                tool_call("create_expense", {
+                    "amount": 3000,
+                    "account": "Efectivo",
+                    "category": category,
+                    "description": "Compra"
+                })
+            ]
+        },
+        {
+            "content": "Gasto registrado correctamente."
+        }
+    )
+
+    response = client.post(
+        "/chat",
+        json={"message": message},
+        headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["actions"][0]["status"] == "ok"
+    assert response.json()["transaction_id"] is not None
+    assert db.query(Transaction).count() == 1
+
+
+def test_chat_completes_expense_after_category_clarification(
+    client, db, create_user, create_account, fake_llm
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    # Primer mensaje: gasto ambiguo
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [tool_call("create_expense", {
+                "amount": 3000,
+                "account": "Efectivo",
+                "category": "Otros",
+                "description": "algo"
+            })]
+        },
+        {
+            "content": "¿En qué categoría querés registrar el gasto?"
+        }
+    )
+
+    first = client.post(
+        "/chat",
+        json={"message": "Gasté 3000 en algo con efectivo"},
+        headers=headers
+    )
+
+    assert first.status_code == 200
+    assert first.json()["actions"][0]["status"] == "needs_info"
+    assert db.query(Transaction).count() == 0
+
+    # Segundo mensaje: el usuario confirma la categoría
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [tool_call("create_expense", {
+                "amount": 3000,
+                "account": "Efectivo",
+                "category": "Otros",
+                "description": "algo"
+            })]
+        },
+        {"content": "Gasto registrado correctamente."}
+    )
+
+    second = client.post(
+        "/chat",
+        json={
+            "message": "Ponelo en Otros",
+            "history": [
+                {
+                    "role": "user",
+                    "content": "Gasté 3000 en algo con efectivo"
+                },
+                {
+                    "role": "assistant",
+                    "content": first.json()["reply"]
+                }
+            ]
+        },
+        headers=headers
+    )
+
+    assert second.status_code == 200
+    assert second.json()["actions"][0]["status"] == "ok"
+    assert second.json()["transaction_id"] is not None
+    assert db.query(Transaction).count() == 1

@@ -10,6 +10,7 @@ Reglas que aplica el backend, sin depender de la IA:
 - cada mensaje queda registrado en audit_logs.
 """
 import json
+import re
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -17,7 +18,7 @@ from app.agent import llm
 from app.agent import tools as agent_tools
 from app.database import get_db
 from app.models import AuditLog, User
-from app.routers.tools import _today
+from app.routers.tools import _norm, _today
 from app.security import get_current_user
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -73,6 +74,25 @@ def _save_audit(db: Session, user: User, message: str, actions: list[dict],
     ))
     db.commit()
 
+def _category_needs_confirmation(message: str, category: str | None) -> bool:
+    text = _norm(message)
+
+    vague_reason = re.search(
+        r"\b(?:en|por)\s+(?:(?:un|una|unos|unas)\s+)?"
+        r"(?:algo|cosa|cosas|varios|varias)\b",
+        text,
+    )
+
+    if not vague_reason:
+        return False
+
+    # Si el usuario indicó explícitamente la categoría, se respeta.
+    if category:
+        category_name = _norm(category)
+        if re.search(rf"\b{re.escape(category_name)}\b", text):
+            return False
+
+    return True
 
 @router.post("", response_model=ChatOut)
 def chat(
@@ -119,7 +139,19 @@ def chat(
                               "options": {}, "data": {},
                               "message_hint": "Solo se registra una operacion por mensaje. No se guardo esta."}
                 else:
-                    result = agent_tools.execute(name, args, db, user)
+                    effective_args = args
+
+                    if (
+                        name == "create_expense"
+                        and _category_needs_confirmation(
+                            body.message,
+                            args.get("category")
+                        )
+                    ):
+                        effective_args = {**args, "category": None}
+
+                    result = agent_tools.execute(name, effective_args, db, user)
+
                     if name in agent_tools.WRITE_TOOLS and result["status"] == "ok":
                         write_done = True
                         transaction_id = result["data"].get("transaction_id")
