@@ -38,6 +38,22 @@ def create_account(
             detail="Por el momento solo se admite la moneda ARS"
         )
 
+    existing_account = (
+        db.query(Account)
+        .filter(
+            Account.user_id == current_user.id,
+            Account.active.is_(True),
+            func.lower(func.trim(Account.name)) == account_data.name.lower()
+        )
+        .first()
+    )
+
+    if existing_account:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya existe una cuenta activa con ese nombre"
+        )
+
     new_account = Account(
         user_id=current_user.id,
         name=account_data.name,
