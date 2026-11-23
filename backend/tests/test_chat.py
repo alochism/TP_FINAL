@@ -439,3 +439,37 @@ def test_chat_completes_expense_after_category_clarification(
     assert second.json()["actions"][0]["status"] == "ok"
     assert second.json()["transaction_id"] is not None
     assert db.query(Transaction).count() == 1
+
+
+def test_chat_handles_invalid_tool_arguments(
+    client, db, create_user, create_account, fake_llm
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [
+                tool_call("create_expense", {
+                    "amount": [1000],
+                    "account": "Efectivo",
+                    "category": "Transporte"
+                })
+            ]
+        },
+        {
+            "content": "No se pudo registrar el gasto."
+        }
+    )
+
+    response = client.post(
+        "/chat",
+        json={"message": "Registrá un gasto de 1000"},
+        headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["actions"][0]["status"] == "rejected"
+    assert response.json()["transaction_id"] is None
+    assert db.query(Transaction).count() == 0

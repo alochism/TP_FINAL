@@ -84,3 +84,86 @@ def test_expenses_by_category_filters_by_date(client, create_user, create_accoun
     )
 
     assert Decimal(str(response.json()[0]["total"])) == Decimal("7000")
+
+
+def test_expenses_report_isolated_by_user(
+    client, create_user, create_account, category_id
+):
+    ana = create_user("ana@correo.com")
+    bruno = create_user("bruno@correo.com")
+
+    ana_account = create_account(ana, name="Efectivo")
+    bruno_account = create_account(bruno, name="Efectivo")
+
+    transport = category_id("Transporte", "EXPENSE")
+
+    register(
+        client, "/transactions/expense",
+        ana, ana_account["id"], transport, 5000
+    )
+
+    register(
+        client, "/transactions/expense",
+        bruno, bruno_account["id"], transport, 20000
+    )
+
+    response = client.get(
+        "/transactions/expenses-by-category",
+        headers=ana
+    )
+
+    assert response.status_code == 200
+
+    totals = {
+        item["category"]: Decimal(str(item["total"]))
+        for item in response.json()
+    }
+
+    assert totals == {"Transporte": Decimal("5000")}
+
+
+def test_voided_expense_is_excluded_from_category_report(
+    client, create_user, create_account, category_id
+):
+    headers = create_user()
+    account = create_account(headers, initial_balance=20000)
+    transport = category_id("Transporte", "EXPENSE")
+
+    first = client.post(
+        "/transactions/expense",
+        json={
+            "account_id": account["id"],
+            "category_id": transport,
+            "amount": 3000,
+            "date": "2026-11-10"
+        },
+        headers=headers
+    )
+    assert first.status_code == 201
+
+    register(
+        client, "/transactions/expense",
+        headers, account["id"], transport, 7000
+    )
+
+    # Anulamos solamente el primer gasto
+    response = client.patch(
+        f"/transactions/{first.json()['id']}/void",
+        headers=headers
+    )
+    assert response.status_code == 200
+
+    report = client.get(
+        "/transactions/expenses-by-category",
+        headers=headers
+    )
+
+    totals = {
+        item["category"]: Decimal(str(item["total"]))
+        for item in report.json()
+    }
+
+    assert totals == {"Transporte": Decimal("7000")}
+
+    balance = client.get("/accounts/balance", headers=headers)
+    assert Decimal(str(balance.json()["balance"])) == Decimal("13000")
