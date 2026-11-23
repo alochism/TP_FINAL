@@ -2,44 +2,44 @@
 
 ## Objetivo
 
-La Plataforma Conversacional de Finanzas Personales utilizara una arquitectura modular con separacion de responsabilidades.
+La Plataforma Conversacional de Finanzas Personales utiliza una arquitectura modular con separación de responsabilidades.
 
-La interpretacion del lenguaje natural estara separada de las reglas de negocio y de la persistencia de datos.
+La interpretación del lenguaje natural está separada de las reglas de negocio y de la persistencia de datos.
 
 El principio central de la arquitectura es:
 
 > El agente interpreta. El backend decide.
 
-El agente podra interpretar lo solicitado por el usuario, pero las operaciones financieras seran validadas y ejecutadas por el backend.
+El modelo de inteligencia artificial interpreta las solicitudes y propone operaciones, pero las reglas financieras son validadas y ejecutadas exclusivamente por el backend.
 
 ---
 
 ## Arquitectura general
 
-El flujo principal del sistema sera:
+El sistema utiliza una arquitectura web donde React se comunica con FastAPI, que integra el procesamiento conversacional mediante Gemini y administra la persistencia en PostgreSQL.
 
-`Usuario → Interfaz Web → OpenClaw → Agente/LLM → Backend FastAPI → PostgreSQL → Respuesta`
+El flujo principal es:
+
+`Usuario → React → FastAPI → Gemini → FastAPI → PostgreSQL → Respuesta`
 
 ```mermaid
 flowchart LR
     U[Usuario]
-    W[Interfaz Web]
-    O[OpenClaw]
-    L[Agente / LLM]
+    W[Interfaz Web React]
     B[Backend FastAPI]
+    L[Gemini / LLM]
     D[(PostgreSQL)]
 
     U --> W
-    W --> O
-    O --> L
-    L --> O
-    O --> B
-    B --> D
-    D --> B
-    B --> O
-    O --> W
+    W --> B
+    B --> L
+    L --> B
+    B <--> D
+    B --> W
     W --> U
 ```
+
+El frontend no se comunica directamente con Gemini ni con PostgreSQL. Todas las solicitudes pasan por FastAPI, que controla la autenticación, autorización y ejecución de operaciones.
 
 ---
 
@@ -47,87 +47,115 @@ flowchart LR
 
 ### Interfaz Web
 
-Sera el punto de acceso del usuario al sistema.
+Es el punto de acceso del usuario al sistema.
 
-Permitira autenticarse, interactuar mediante lenguaje natural y consultar la informacion financiera.
+Permite registrarse, iniciar sesión, administrar cuentas, consultar movimientos e interactuar mediante lenguaje natural con el asistente financiero.
 
-**Tecnologia:** React.
+**Tecnología:** React.
 
-### OpenClaw
+### Procesamiento conversacional
 
-Funcionara como capa de orquestacion entre la interfaz, el modelo de lenguaje y el backend.
+El sistema utiliza Gemini mediante su API, compatible con el formato de Chat Completions de OpenAI.
 
-Coordinara la interpretacion de los mensajes y la ejecucion de las herramientas disponibles.
+El modelo interpreta los mensajes y propone llamadas a herramientas (*function calling*) con parámetros estructurados.
 
-No tendra acceso directo a la base de datos ni implementara las reglas financieras.
+Si falta información necesaria para ejecutar una operación, el sistema solicita una aclaración en lugar de completar datos arbitrariamente.
 
-### Agente / LLM
-
-Interpretara las solicitudes realizadas en lenguaje natural y las transformara en solicitudes estructuradas.
-
-Si falta informacion necesaria para ejecutar una operacion, debera solicitar una aclaracion en lugar de inventar datos.
+Gemini no tiene acceso directo a la base de datos y no ejecuta operaciones financieras por su cuenta.
 
 ### Backend
 
-Sera responsable de las reglas de negocio y expondra una API REST mediante FastAPI.
+FastAPI centraliza las reglas de negocio y expone los endpoints REST utilizados por la interfaz.
 
-Validara autenticacion, autorizacion, cuentas, categorias, importes y operaciones financieras antes de realizar modificaciones.
+Sus responsabilidades incluyen:
+
+- Validar autenticación y autorización mediante JWT.
+- Comprobar la propiedad y el estado de las cuentas.
+- Validar categorías, importes, fechas y monedas admitidas.
+- Ejecutar operaciones de ingresos y gastos.
+- Calcular saldos y generar consultas.
+- Procesar las solicitudes conversacionales y controlar la ejecución de herramientas.
+
+Las validaciones financieras comunes se encuentran centralizadas para evitar comportamientos diferentes entre las operaciones REST y las solicitudes del asistente.
 
 ### Base de datos
 
-PostgreSQL sera la fuente de verdad del sistema.
+PostgreSQL constituye la fuente de verdad del sistema.
 
-Almacenara usuarios, cuentas, categorias y transacciones. El acceso a la base de datos se realizara exclusivamente desde el backend.
+Almacena usuarios, cuentas, categorías, movimientos y registros de auditoría conversacional.
+
+El acceso a PostgreSQL se realiza exclusivamente desde el backend mediante SQLAlchemy.
 
 ---
 
-## Implementacion del flujo conversacional
+## Implementación del flujo conversacional
 
-La interfaz web no se comunica directamente con la IA. Todo mensaje entra por
-`POST /chat` del backend, autenticado con el JWT del usuario:
+La interfaz web envía los mensajes a `POST /chat`, incluyendo el JWT del usuario y el historial conversacional correspondiente.
 
 ```mermaid
 sequenceDiagram
     participant W as Interfaz web
     participant B as Backend FastAPI
-    participant L as OpenClaw / LLM
+    participant L as Gemini
     participant D as PostgreSQL
+
     W->>B: POST /chat (JWT + mensaje + historial)
-    B->>L: mensaje + definicion de tools
-    L-->>B: tool elegida y parametros propuestos
-    B->>B: valida datos, cuenta y categoria del usuario del JWT
-    B->>D: registra el movimiento (solo si todo es valido)
-    B->>L: resultado (ok / needs_info / rejected)
-    L-->>B: respuesta en lenguaje natural
-    B->>D: registra la auditoria del mensaje
-    B-->>W: respuesta + operaciones realizadas
+    B->>L: Mensaje + herramientas disponibles
+    L-->>B: Herramienta y parámetros propuestos
+    B->>B: Validación de reglas y permisos
+    opt Operación válida de escritura
+        B->>D: Registrar movimiento
+        D-->>B: Resultado de la operación
+    end
+    B->>L: Resultado de la herramienta
+    L-->>B: Respuesta en lenguaje natural
+    B->>D: Registrar auditoría conversacional
+    B-->>W: Respuesta y operaciones realizadas
 ```
 
-- La IA solo propone la tool y sus parametros. El usuario sale siempre del JWT.
-- Las tools se ejecutan en el backend (`app/routers/tools.py`), reutilizando las mismas validaciones que la API REST.
-- El backend permite como maximo una operacion de escritura por mensaje.
-- Si la IA no responde o responde algo invalido, no se modifica nada y se informa al usuario.
-- Cada mensaje queda registrado en `audit_logs`.
+### Reglas del flujo
+
+- Gemini interpreta el mensaje y propone una herramienta, pero no modifica datos directamente.
+- La identidad del usuario se obtiene exclusivamente del JWT.
+- Las herramientas se ejecutan desde el backend mediante `app/agent/tools.py` y `app/routers/tools.py`.
+- Las operaciones reutilizan las reglas financieras implementadas por el backend.
+- Se permite como máximo una operación de escritura exitosa por mensaje.
+- Si faltan datos o existe una ambigüedad detectada, se solicita una aclaración y no se ejecuta la operación correspondiente.
+- Si el proveedor de IA falla antes de registrar un movimiento, no se ejecuta la escritura.
+- Si el movimiento ya fue registrado y falla la generación de la respuesta, el backend conserva la operación e informa al usuario.
+- Las interacciones procesadas por el chat se registran en `audit_logs`.
 
 ### Proveedor de IA reemplazable
 
-El backend usa el formato de Chat Completions de OpenAI, que aceptan tanto el
-gateway de OpenClaw (`/v1/chat/completions`) como Gemini y otros proveedores.
-El proveedor se elige con `LLM_BASE_URL`, `LLM_API_KEY` y `LLM_MODEL`:
+El cliente de IA utiliza el formato de Chat Completions de OpenAI, compatible con Gemini y otros proveedores o gateways que implementen esa interfaz.
 
-| Entorno | Proveedor | Motivo |
-|---|---|---|
-| Desarrollo local | Gateway de OpenClaw | Orquestacion del agente con su skill y sus reglas |
-| Despliegue online | Gemini Flash (API directa, modelo `gemini-flash-latest`) | El gateway de OpenClaw no corre en el plan gratuito de Render |
+La configuración se realiza mediante variables de entorno:
 
-Cambiar de proveedor no modifica la logica financiera. Gemini Flash se eligio
-por tener un nivel gratuito suficiente para el TPF, baja latencia y soporte de tool calling.
+- `LLM_BASE_URL`: dirección del proveedor.
+- `LLM_API_KEY`: credencial de acceso.
+- `LLM_MODEL`: modelo seleccionado.
+- `LLM_FALLBACK_MODEL`: modelo alternativo opcional.
+- `LLM_TIMEOUT`: tiempo máximo de respuesta.
+
+| Entorno | Integración |
+|---|---|
+| Desarrollo local | Gemini mediante API directa |
+| Despliegue online | Gemini mediante API directa |
+| Integración alternativa | Gateway de OpenClaw, disponible en el repositorio |
+
+El despliegue definido en `render.yaml` utiliza `gemini-flash-latest` como modelo principal y `gemini-flash-lite-latest` como respaldo.
+
+La configuración local puede utilizar otro modelo compatible según las credenciales y la disponibilidad.
+
+OpenClaw y su servidor MCP permanecen como componentes de integración alternativa, pero **no forman parte del flujo principal de la aplicación web del P0**.
+
+La elección de un proveedor diferente no requiere modificar las reglas financieras del backend.
 
 ---
 
 ## Arquitectura interna del backend
 
-El backend se organizara en capas con responsabilidades separadas:
+El backend está organizado en módulos con responsabilidades diferenciadas:
 
 ```text
 backend/
@@ -135,90 +163,120 @@ backend/
 │   ├── main.py
 │   ├── database.py
 │   ├── security.py
-│   ├── agent/        (cliente del LLM, prompt y definicion de tools)
+│   ├── agent/
 │   ├── models/
 │   ├── schemas/
-│   └── routers/      (incluye chat.py y tools.py)
+│   ├── services/
+│   └── routers/
 ├── alembic/
-├── evaluacion/       (frases de prueba y script de evaluacion)
+├── evaluacion/
 ├── tests/
 └── requirements.txt
 ```
 
-- `routers`: endpoints de la API.
-- `schemas`: estructuras de entrada y salida y validacion de datos.
-- `models`: entidades persistidas en la base de datos.
-- `security`: autenticacion, tokens y manejo de contraseñas.
-- `database`: configuracion del acceso a PostgreSQL.
-- `alembic`: versionado del esquema de la base de datos.
+Responsabilidades principales:
 
-El detalle de las operaciones disponibles para la comunicacion entre el agente y el backend se encuentra documentado en `docs/tools.md`.
+- `agent/`: cliente del proveedor de IA, instrucciones del asistente y definición de herramientas.
+- `routers/`: endpoints REST, operaciones financieras y canal conversacional.
+- `services/`: validaciones financieras compartidas.
+- `schemas/`: estructuras de entrada y salida y validaciones mediante Pydantic.
+- `models/`: entidades persistidas en PostgreSQL.
+- `security.py`: autenticación, tokens y verificación de contraseñas.
+- `database.py`: configuración del acceso a PostgreSQL.
+- `alembic/`: migraciones y versionado del esquema.
+- `tests/`: pruebas automatizadas de autenticación, operaciones y reglas de negocio.
+- `evaluacion/`: conjunto de frases y script para evaluar el comportamiento del asistente con lenguaje natural.
+
+El contrato de herramientas se documenta en `docs/tools.md`.
 
 ---
 
-## Tecnologias
+## Tecnologías
 
-| Componente | Tecnologia |
+| Componente | Tecnología |
 |---|---|
 | Frontend | React |
-| Orquestacion | OpenClaw |
-| Procesamiento conversacional | LLM mediante API |
+| Procesamiento conversacional | Gemini mediante API |
+| Ejecución de herramientas | Function calling gestionado por FastAPI |
 | Backend | Python + FastAPI |
-| Validacion | Pydantic |
+| Validación | Pydantic |
 | ORM | SQLAlchemy |
 | Base de datos | PostgreSQL |
 | Migraciones | Alembic |
-| Autenticacion | JWT |
-| Testing | pytest |
-| Proveedor de IA | Gemini Flash, modelo `gemini-flash-latest` (API compatible con OpenAI) |
+| Autenticación | JWT |
+| Testing automatizado | pytest |
+| Evaluación conversacional | Script Python y casos de lenguaje natural |
 | Control de versiones | Git + GitHub |
-| Despliegue | Render (PostgreSQL, backend y frontend) |
+| Despliegue | Render |
+| Integración alternativa | OpenClaw y MCP |
 
-Docker se descarto: el despliegue en Render se define en `render.yaml` y no hace falta
-un contenedor propio para el alcance del TPF.
+El despliegue comprende PostgreSQL, el backend FastAPI y el frontend React.
+
+La infraestructura se define mediante `render.yaml`, sin necesidad de utilizar Docker para el alcance implementado.
 
 ---
 
-## Justificacion tecnica
+## Justificación técnica
 
-**FastAPI** permite desarrollar una API REST en Python con validacion de datos y una estructura simple para separar las distintas responsabilidades del backend.
+**FastAPI** permite desarrollar una API REST en Python y mantener separadas las responsabilidades de autenticación, procesamiento conversacional, validación y persistencia.
 
-**PostgreSQL** fue seleccionado porque el dominio presenta entidades relacionadas y requiere mantener integridad entre usuarios, cuentas, categorias y movimientos.
+**PostgreSQL** fue seleccionado por su modelo relacional y las necesidades de integridad entre usuarios, cuentas, categorías y movimientos.
 
-**SQLAlchemy** se utilizara para mapear las entidades del dominio y gestionar la persistencia, mientras que **Alembic** permitira versionar los cambios del esquema.
+**SQLAlchemy** permite representar las entidades del dominio y administrar su persistencia, mientras que **Alembic** versiona los cambios en el esquema de datos.
 
-**React** permitira desarrollar una interfaz web basada en componentes.
+**React** permite construir una interfaz basada en componentes reutilizables, separada de las reglas del backend.
 
-**OpenClaw** se utilizara como capa de orquestacion, manteniendo separada la interpretacion conversacional de las reglas financieras.
+**Gemini** permite interpretar instrucciones financieras expresadas en lenguaje natural y proponer llamadas a herramientas estructuradas.
 
-El **LLM** se utilizara para interpretar lenguaje natural, pero no tendra control directo sobre los datos ni reemplazara las validaciones del backend.
+**Function calling** permite que el modelo solicite operaciones sin ejecutarlas directamente. Las herramientas son procesadas y validadas por FastAPI.
+
+La integración directa con Gemini fue elegida para el P0 porque permite cubrir las necesidades del canal web sin mantener un gateway adicional.
+
+**OpenClaw** se conserva como integración alternativa para una posible ampliación de las capacidades del agente y sus canales de comunicación.
 
 ---
 
 ## Seguridad
 
-La arquitectura contempla:
+La arquitectura implementa los siguientes mecanismos:
 
 - Contraseñas almacenadas mediante hash.
-- Autenticacion mediante tokens.
-- Autorizacion de las operaciones por usuario.
-- Separacion de los datos de distintos usuarios.
-- Variables sensibles almacenadas fuera del codigo.
+- Validación de contraseñas durante el registro.
+- Autenticación mediante JWT.
+- Autorización de operaciones según el usuario autenticado.
+- Separación de datos entre usuarios.
+- Validación de propiedad y estado de las cuentas.
+- Validación de montos y fechas antes de registrar movimientos.
+- Restricción de operaciones financieras a pesos argentinos (ARS).
+- Protección frente a determinadas solicitudes ambiguas o inválidas.
+- Variables sensibles almacenadas fuera del código fuente.
 - Acceso a PostgreSQL exclusivamente desde el backend.
-- Ausencia de acceso directo del agente a la base de datos.
+- Ausencia de acceso directo de Gemini a la base de datos.
 
-La identidad del usuario sera determinada por el mecanismo de autenticacion y no por informacion generada por el modelo de lenguaje.
+La identidad del usuario se determina por la autenticación del backend y nunca por información proporcionada por el modelo de lenguaje.
+
+### Auditoría
+
+El sistema registra las interacciones del canal conversacional mediante la tabla `audit_logs`.
+
+Estos registros permiten consultar el mensaje recibido, las herramientas solicitadas, las decisiones del backend, la respuesta generada y el movimiento asociado, cuando corresponde.
+
+La auditoría está orientada al procesamiento conversacional y no constituye un registro integral de todas las operaciones REST.
 
 ---
 
 ## Criterio de diseño
 
-La separacion de responsabilidades permite que cada componente tenga una funcion definida:
+La separación de responsabilidades establece funciones claras:
 
-- El agente interpreta.
-- OpenClaw coordina.
-- El backend valida y ejecuta.
-- PostgreSQL conserva el estado.
-- La interfaz presenta el resultado.
+- **React:** presenta la información y recibe las acciones del usuario.
+- **Gemini:** interpreta solicitudes expresadas en lenguaje natural.
+- **FastAPI:** valida, autoriza y ejecuta las operaciones.
+- **PostgreSQL:** conserva los datos y el estado financiero.
+- **pytest y evaluación conversacional:** permiten comprobar las reglas y analizar el comportamiento del asistente.
 
-De esta manera, la capa conversacional puede evolucionar sin modificar las reglas centrales del sistema y el backend puede probarse independientemente del modelo de lenguaje.
+De esta manera, el sistema mantiene las decisiones financieras fuera del modelo de inteligencia artificial.
+
+El backend puede probarse independientemente de Gemini y el proveedor conversacional puede reemplazarse sin modificar las reglas centrales del dominio.
+
+> **El agente interpreta. El backend decide.**
