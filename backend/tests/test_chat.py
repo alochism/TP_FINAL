@@ -194,3 +194,88 @@ def test_tools_offer_only_existing_categories(db):
 
     assert "Alimentación" in expense_categories
     assert "Sueldo" not in expense_categories
+
+
+@pytest.mark.parametrize("route,category", [
+    ("/tools/expense", "Transporte"),
+    ("/tools/income", "Sueldo"),
+])
+@pytest.mark.parametrize("invalid_data,expected_code", [
+    ({"amount": 150.999}, "INVALID_AMOUNT"),
+    ({"amount": 10000000000000}, "INVALID_AMOUNT"),
+    ({"date": "2099-01-01"}, "INVALID_DATE"),
+])
+def test_tools_reject_invalid_movements(
+    client, db, create_user, create_account,
+    route, category, invalid_data, expected_code
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    data = {
+        "amount": 1000,
+        "account": "Efectivo",
+        "category": category,
+        "date": "2026-01-01",
+    }
+    data.update(invalid_data)
+
+    response = client.post(route, json=data, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+    assert response.json()["code"] == expected_code
+    assert db.query(Transaction).count() == 0
+
+
+@pytest.mark.parametrize(
+    "tool_name,category,invalid_data,expected_code",
+    [
+        (
+            "create_expense", "Transporte",
+            {"amount": 150.999}, "INVALID_AMOUNT"
+        ),
+        (
+            "create_income", "Sueldo",
+            {"date": "2099-01-01"}, "INVALID_DATE"
+        ),
+    ]
+)
+def test_chat_rejects_invalid_movement_without_saving(
+    client, db, create_user, create_account, fake_llm,
+    tool_name, category, invalid_data, expected_code
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    arguments = {
+        "amount": 1000,
+        "account": "Efectivo",
+        "category": category,
+        "date": "2026-01-01",
+    }
+    arguments.update(invalid_data)
+
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [tool_call(tool_name, arguments)]
+        },
+        {
+            "content": "No se registró el movimiento."
+        },
+    )
+
+    response = client.post(
+        "/chat",
+        json={"message": "Registrá este movimiento"},
+        headers=headers
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["actions"][0]["status"] == "rejected"
+    assert body["actions"][0]["code"] == expected_code
+    assert body["transaction_id"] is None
+    assert db.query(Transaction).count() == 0
