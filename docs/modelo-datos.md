@@ -2,11 +2,11 @@
 
 ## Objetivo
 
-El modelo de datos del P0 busca representar las entidades minimas necesarias para registrar y consultar movimientos financieros personales.
+El modelo de datos de la Plataforma Conversacional de Finanzas Personales representa las entidades necesarias para registrar y consultar movimientos financieros personales.
 
-Se prioriza un modelo simple que permita implementar y validar primero el nucleo funcional del sistema, evitando incorporar en esta etapa funcionalidades que aumenten innecesariamente la complejidad.
+Se priorizó un diseño relacional simple, que permite implementar las funcionalidades principales del P0, mantener la integridad de los datos y evitar complejidad innecesaria.
 
-El P0 trabajara exclusivamente con pesos argentinos (ARS) y con cuentas simples de disponibilidad.
+El sistema trabaja exclusivamente con pesos argentinos (ARS) y cuentas de disponibilidad. No realiza movimientos de dinero real ni se conecta directamente con entidades financieras.
 
 ---
 
@@ -14,16 +14,20 @@ El P0 trabajara exclusivamente con pesos argentinos (ARS) y con cuentas simples 
 
 ### User
 
-Representa a cada usuario registrado en la aplicacion.
+Representa a cada usuario registrado en la aplicación.
 
 Campos principales:
 
-- `id`: identificador unico.
-- `email`: correo electronico utilizado para identificar al usuario.
+- `id`: identificador único.
+- `email`: correo electrónico utilizado para identificar al usuario.
 - `password_hash`: contraseña almacenada de forma segura mediante hash.
-- `created_at`: fecha y hora de creacion.
+- `created_at`: fecha y hora de creación.
 
-Cada usuario puede tener multiples cuentas.
+Cada usuario puede tener múltiples cuentas financieras.
+
+Durante el registro se valida el formato del correo electrónico y se exige una contraseña de al menos 8 caracteres y como máximo 72 bytes en UTF-8.
+
+El correo electrónico debe ser único.
 
 ### Account
 
@@ -31,16 +35,16 @@ Representa una cuenta desde la cual el usuario registra ingresos y gastos.
 
 Campos principales:
 
-- `id`: identificador unico.
+- `id`: identificador único.
 - `user_id`: usuario propietario de la cuenta.
-- `name`: nombre asignado a la cuenta.
+- `name`: nombre asignado.
 - `type`: tipo de cuenta.
-- `currency`: moneda de la cuenta.
+- `currency`: moneda.
 - `initial_balance`: saldo inicial informado por el usuario.
-- `active`: indica si la cuenta se encuentra activa.
-- `created_at`: fecha y hora de creacion.
+- `active`: indica si la cuenta está activa.
+- `created_at`: fecha y hora de creación.
 
-Los tipos de cuenta contemplados inicialmente son:
+Los tipos de cuenta admitidos son:
 
 - `CASH`: efectivo.
 - `BANK`: cuenta bancaria.
@@ -49,50 +53,62 @@ Los tipos de cuenta contemplados inicialmente son:
 Ejemplos:
 
 - Efectivo.
-- Banco Nacion.
+- Banco Nación.
 - Mercado Pago.
 
-Durante el P0 todas las cuentas utilizaran `ARS`.
+Todas las cuentas utilizan `ARS`.
 
-No se contemplan inicialmente tarjetas de credito, inversiones ni cuentas en otras monedas.
+El backend aplica las siguientes validaciones al crear una cuenta:
+
+- El nombre no puede estar vacío ni contener únicamente espacios.
+- Se eliminan los espacios iniciales y finales.
+- El nombre no puede superar 100 caracteres.
+- Un usuario no puede crear dos cuentas activas con el mismo nombre, ignorando mayúsculas, minúsculas y espacios exteriores.
+- El saldo inicial debe ser mayor o igual a cero.
+- El saldo inicial admite como máximo dos decimales y debe respetar la precisión del campo numérico.
+- El tipo y la moneda deben corresponder a los valores admitidos.
+
+La desactivación de cuentas es lógica: se conserva la cuenta y sus movimientos, pero deja de estar disponible para nuevas operaciones.
 
 ### Category
 
-Representa la clasificacion de un ingreso o gasto.
+Representa la clasificación de un ingreso o gasto.
 
 Campos principales:
 
-- `id`: identificador unico.
-- `name`: nombre de la categoria.
+- `id`: identificador único.
+- `name`: nombre de la categoría.
 - `type`: indica si corresponde a un ingreso o gasto.
 
-Los valores posibles para `type` son:
+Los valores posibles de `type` son:
 
-- `EXPENSE`
-- `INCOME`
+- `EXPENSE`: gasto.
+- `INCOME`: ingreso.
 
-En el P0 las categorias seran predefinidas por el sistema.
+Las categorías del P0 son globales y predefinidas por el sistema.
 
-Ejemplos de categorias de gastos:
+Categorías de gastos:
 
-- Alimentacion.
+- Alimentación.
 - Transporte.
 - Vivienda.
 - Servicios.
 - Salud.
-- Educacion.
+- Educación.
 - Entretenimiento.
 - Compras.
 - Otros.
 
-Ejemplos de categorias de ingresos:
+Categorías de ingresos:
 
 - Sueldo.
 - Honorarios.
 - Inversiones.
 - Otros.
 
-La creacion de categorias personalizadas por parte del usuario queda fuera del alcance del P0 y podra evaluarse como funcionalidad posterior.
+Una categoría se identifica por su registro y su tipo. Por lo tanto, `Otros` puede existir tanto para ingresos como para gastos.
+
+La creación de categorías personalizadas queda fuera del P0.
 
 ### Transaction
 
@@ -100,32 +116,64 @@ Representa un movimiento financiero registrado en una cuenta.
 
 Campos principales:
 
-- `id`: identificador unico.
+- `id`: identificador único.
 - `account_id`: cuenta asociada.
-- `category_id`: categoria asociada.
+- `category_id`: categoría asociada.
 - `type`: tipo de movimiento.
 - `amount`: importe.
 - `date`: fecha del movimiento.
-- `description`: descripcion opcional del movimiento.
+- `description`: descripción opcional.
 - `status`: estado del movimiento.
-- `created_at`: fecha y hora de creacion.
-- `updated_at`: fecha y hora de ultima modificacion.
+- `created_at`: fecha y hora de creación.
+- `updated_at`: fecha y hora de última modificación.
 
-Los tipos de movimiento contemplados en P0 son:
+Tipos de movimiento:
 
-- `EXPENSE`
-- `INCOME`
+- `EXPENSE`: gasto.
+- `INCOME`: ingreso.
 
-Los estados iniciales son:
+Estados admitidos:
 
-- `ACTIVE`
-- `VOIDED`
+- `ACTIVE`: movimiento vigente.
+- `VOIDED`: movimiento anulado.
 
-Los movimientos no se eliminaran fisicamente como mecanismo habitual de correccion. Una operacion anulada conservara su registro y cambiara su estado a `VOIDED`, permitiendo mantener la trazabilidad.
+Las operaciones deben cumplir las siguientes reglas de negocio:
+
+- El monto debe ser mayor que cero.
+- El monto admite hasta dos decimales.
+- El importe máximo permitido es `9999999999999.99`.
+- No se permiten fechas futuras.
+- La cuenta debe existir, estar activa y pertenecer al usuario autenticado.
+- La categoría debe existir y corresponder al tipo de movimiento.
+
+Las reglas comunes de monto y fecha están centralizadas en `app/services/transaction_validation.py` y se aplican tanto a las operaciones REST como a las herramientas del asistente.
+
+Los movimientos anulados no se eliminan físicamente. Permanecen en PostgreSQL con estado `VOIDED`, pero dejan de participar en el cálculo de saldos y en los reportes de gastos activos.
+
+### AuditLog
+
+Representa el registro de auditoría de las interacciones procesadas por el asistente conversacional.
+
+Campos principales:
+
+- `id`: identificador único.
+- `user_id`: usuario que realizó la consulta.
+- `created_at`: fecha y hora de la interacción.
+- `message`: mensaje original del usuario.
+- `actions`: herramientas solicitadas y decisiones del backend.
+- `transaction_id`: identificador del movimiento generado, cuando corresponde.
+- `reply`: respuesta del asistente.
+- `llm_error`: indica si se produjo un error del proveedor de IA.
+
+La auditoría permite reconstruir cómo fue procesada una solicitud conversacional.
+
+Su alcance está limitado al canal `/chat`: no constituye una auditoría integral de todas las operaciones realizadas mediante los endpoints REST.
 
 ---
 
 ## Esquema relacional
+
+Las tablas implementadas en PostgreSQL son las siguientes.
 
 ### users
 
@@ -172,50 +220,56 @@ Los movimientos no se eliminaran fisicamente como mecanismo habitual de correcci
 | `created_at` | TIMESTAMP | NOT NULL |
 | `updated_at` | TIMESTAMP | NOT NULL |
 
----
-
 ### audit_logs
 
-Registro de cada mensaje procesado por el chat.
-
-| Campo | Tipo | Restricciones |
+| Campo | Tipo de dato | Restricciones |
 |---|---|---|
-| id | INTEGER | PK |
-| user_id | INTEGER | FK → users.id, NOT NULL, indice |
-| created_at | TIMESTAMP | NOT NULL |
-| message | TEXT | NOT NULL. Mensaje original del usuario |
-| actions | JSON | NOT NULL. Tools pedidas por la IA, parametros y decision del backend |
-| transaction_id | INTEGER | NULL. Movimiento generado, si lo hubo |
-| reply | TEXT | NOT NULL. Respuesta enviada al usuario |
-| llm_error | BOOLEAN | NOT NULL. Indica si el proveedor de IA fallo |
+| `id` | INTEGER | PK |
+| `user_id` | INTEGER | FK → `users.id`, NOT NULL, INDEX |
+| `created_at` | TIMESTAMP | NOT NULL |
+| `message` | TEXT | NOT NULL |
+| `actions` | JSON | NOT NULL |
+| `transaction_id` | INTEGER | NULL |
+| `reply` | TEXT | NOT NULL |
+| `llm_error` | BOOLEAN | NOT NULL |
 
-Permite mostrar en la defensa que la IA interpreta, pero el sistema controla y deja trazabilidad.
-No guarda contraseñas, tokens ni API keys.
+El campo `audit_logs.transaction_id` permite registrar el identificador del movimiento asociado, pero actualmente no posee una restricción de clave foránea hacia `transactions`.
+
+**Nota:** las tablas reflejan el esquema implementado en las migraciones. Las validaciones adicionales de nombres, montos, fechas, monedas y estados se realizan principalmente en la capa de aplicación.
 
 ---
 
 ## Relaciones
 
-Las relaciones principales son:
+Las relaciones principales del modelo son:
 
 - Un `User` puede tener muchas `Account`.
-- Cada `Account` pertenece a un unico `User`.
-- Una `Account` puede tener muchas `Transaction`.
-- Cada `Transaction` pertenece a una unica `Account`.
-- Una `Category` puede estar asociada a muchas `Transaction`.
-- Cada `Transaction` pertenece a una unica `Category`.
+- Cada `Account` pertenece a un único `User`.
+- Una `Account` puede contener muchas `Transaction`.
+- Cada `Transaction` corresponde a una única `Account`.
+- Una `Category` puede clasificar muchas `Transaction`.
+- Cada `Transaction` corresponde a una única `Category`.
+- Un `User` puede tener muchos registros `AuditLog`.
+- Cada `AuditLog` pertenece a un único `User`.
 
-La relacion entre `User` y `Transaction` es indirecta a traves de `Account`. De esta forma se evita almacenar de manera redundante el usuario en cada movimiento y se mantiene una unica fuente para determinar la propiedad de una transaccion.
+La relación entre `User` y `Transaction` es indirecta:
+
+`Transaction → Account → User`
+
+Esto evita almacenar redundantemente el usuario propietario dentro de cada movimiento.
+
+El campo `transaction_id` de la auditoría funciona como referencia informativa y no como una relación de clave foránea implementada.
 
 ---
 
-## Diagrama entidad-relacion
+## Diagrama entidad-relación
 
 ```mermaid
 erDiagram
     USER ||--o{ ACCOUNT : posee
     ACCOUNT ||--o{ TRANSACTION : registra
     CATEGORY ||--o{ TRANSACTION : clasifica
+    USER ||--o{ AUDIT_LOG : genera
 
     USER {
         INTEGER id PK
@@ -253,70 +307,130 @@ erDiagram
         TIMESTAMP created_at
         TIMESTAMP updated_at
     }
+
+    AUDIT_LOG {
+        INTEGER id PK
+        INTEGER user_id FK
+        TIMESTAMP created_at
+        TEXT message
+        JSON actions
+        INTEGER transaction_id
+        TEXT reply
+        BOOLEAN llm_error
+    }
 ```
 
 ---
 
-## Indices principales
+## Índices y restricciones de unicidad
 
-Para facilitar las consultas mas frecuentes se contemplan los siguientes indices:
+Los principales mecanismos implementados en el esquema actual son:
 
-- `users.email`: indice unico para identificar usuarios y evitar emails duplicados.
-- `accounts.user_id`: facilita la busqueda de las cuentas pertenecientes a un usuario.
-- `transactions.account_id`: facilita la consulta de movimientos correspondientes a una cuenta.
-- `transactions.category_id`: facilita consultas y agrupaciones de movimientos por categoria.
-- `transactions.date`: facilita la consulta de movimientos dentro de un periodo determinado.
+- `users.email`: restricción `UNIQUE`, que impide registrar correos electrónicos duplicados y permite su búsqueda mediante un índice único en PostgreSQL.
+- `audit_logs.user_id`: índice `ix_audit_logs_user_id`, utilizado para facilitar las consultas de auditoría por usuario.
+- Claves primarias: PostgreSQL crea índices asociados a las claves primarias de las cinco tablas.
 
-Los indices definidos en esta etapa podran ajustarse posteriormente de acuerdo con las consultas reales y las necesidades de rendimiento observadas durante el desarrollo.
+Las columnas `accounts.user_id`, `transactions.account_id`, `transactions.category_id` y `transactions.date` participan en consultas y relaciones del sistema, pero no tienen índices adicionales definidos expresamente en las migraciones actuales.
+
+La incorporación de índices específicos para estas consultas queda como una posible optimización futura, en función del volumen de datos y el rendimiento observado.
 
 ---
 
 ## Decisiones de diseño
 
-### Separacion entre usuario y transaccion
+### Separación entre usuario y movimiento
 
-`Transaction` no almacena directamente un `user_id`.
+`Transaction` no almacena directamente un campo `user_id`.
 
-La propiedad del movimiento se determina mediante la relacion:
+La propiedad del movimiento se determina mediante:
 
 `Transaction → Account → User`
 
-Esto evita duplicar informacion y reduce el riesgo de inconsistencias entre el usuario asociado a una cuenta y el usuario asociado a un movimiento.
+Esto evita duplicar información y permite que la autorización se base en la cuenta propietaria del movimiento.
 
-### Saldo de las cuentas
+### Cálculo del saldo
 
-El saldo actual no se almacena como un campo independiente.
+El saldo actual no se almacena como un atributo independiente.
 
-Se obtiene a partir de:
+Se calcula mediante:
 
-`saldo inicial + ingresos activos - gastos activos`
+`Saldo actual = Saldo inicial + Ingresos activos - Gastos activos`
 
-De esta forma los movimientos financieros constituyen la fuente de informacion utilizada para determinar el saldo.
+Solo se consideran los movimientos cuyo estado sea `ACTIVE`.
 
-### Categorias
+El saldo total presentado por el sistema corresponde a la suma de los saldos de las cuentas activas del usuario.
 
-Durante el P0 las categorias son globales y predefinidas por el sistema.
+Cuando una cuenta se desactiva, sus movimientos permanecen almacenados, pero su saldo deja de formar parte del saldo total de cuentas activas.
 
-En una etapa posterior se podra extender el modelo incorporando categorias personalizadas asociadas a cada usuario.
+### Anulación lógica
 
-### Alcance inicial
+Los movimientos no se eliminan físicamente como procedimiento habitual de corrección.
 
-El modelo P0 contempla exclusivamente:
+Al anular una transacción:
 
-- Usuarios.
+- Su estado pasa de `ACTIVE` a `VOIDED`.
+- Se conserva su información.
+- Deja de afectar el saldo.
+- Deja de contabilizarse en los reportes de gastos activos.
+
+Este mecanismo permite mantener el historial de operaciones sin alterar físicamente los registros originales.
+
+### Categorías predefinidas
+
+Las categorías son compartidas por todos los usuarios y diferenciadas según el tipo de movimiento.
+
+Durante el P0 no se permite crear categorías personalizadas.
+
+El asistente puede proponer una categoría, pero el backend verifica que exista y corresponda al tipo de operación.
+
+Ante determinadas expresiones ambiguas, el sistema solicita una aclaración antes de registrar el movimiento.
+
+### Validaciones de aplicación
+
+Además de las restricciones del esquema relacional, FastAPI y Pydantic aplican reglas de negocio adicionales:
+
+- Validación de contraseñas en el registro.
+- Validación de nombres y saldos iniciales de cuentas.
+- Prevención de nombres duplicados entre cuentas activas del mismo usuario.
+- Validación de importes y fechas de movimientos.
+- Verificación de cuentas y categorías válidas.
+- Autorización de operaciones según el usuario autenticado.
+
+Estas reglas se encuentran en los esquemas, servicios y routers del backend. No todas están expresadas como restricciones `CHECK` o `UNIQUE` en PostgreSQL.
+
+### Auditoría conversacional
+
+La entidad `AuditLog` permite registrar las solicitudes procesadas por el asistente.
+
+Su objetivo es facilitar la trazabilidad de la interpretación realizada por la IA y las decisiones del backend.
+
+La auditoría no reemplaza las entidades financieras ni modifica el cálculo de saldos.
+
+---
+
+## Alcance implementado
+
+El modelo del P0 contempla:
+
+- Usuarios autenticados.
 - Cuentas de efectivo, bancarias y billeteras virtuales.
-- Ingresos.
-- Gastos.
-- Categorias predefinidas.
-- Moneda ARS.
-- Anulacion logica de movimientos.
+- Ingresos y gastos.
+- Categorías predefinidas.
+- Operaciones exclusivamente en ARS.
+- Cálculo dinámico de saldos.
+- Anulación lógica de movimientos.
+- Auditoría de interacciones conversacionales.
 
 Quedan fuera del alcance inicial:
 
-- Tarjetas de credito.
-- Multiples monedas.
+- Tarjetas de crédito.
+- Múltiples monedas.
 - Transferencias entre cuentas.
 - Movimientos recurrentes.
 - Presupuestos.
-- Categorias personalizadas.
+- Categorías personalizadas.
 - Integraciones directas con bancos o billeteras.
+- Auditoría integral de todas las operaciones REST.
+- Mecanismos de idempotencia para reintentos de solicitudes.
+
+Estas funcionalidades podrán evaluarse como evoluciones futuras sin modificar los principios centrales del modelo relacional.

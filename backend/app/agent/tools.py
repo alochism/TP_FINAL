@@ -9,6 +9,7 @@ import json
 from app.models import Category, User
 from app.routers import tools as backend_tools
 from sqlalchemy.orm import Session
+from pydantic import ValidationError
 
 WRITE_TOOLS = {"create_expense", "create_income"}
 
@@ -88,15 +89,24 @@ def _str(args: dict, key: str) -> str | None:
 
 def execute(name: str, args: dict, db: Session, user: User) -> dict:
     """Ejecuta una tool con el usuario autenticado y devuelve el envelope del backend."""
+
     if name in WRITE_TOOLS:
-        body = backend_tools.MovementIn(
-            amount=args.get("amount"),
-            date=_str(args, "date"),
-            category=_str(args, "category"),
-            account=_str(args, "account"),
-            description=(_str(args, "description") or "")[:200] or None,
-            currency=_str(args, "currency"),
-        )
+        try:
+            body = backend_tools.MovementIn(
+                amount=args.get("amount"),
+                date=_str(args, "date"),
+                category=_str(args, "category"),
+                account=_str(args, "account"),
+                description=(_str(args, "description") or "")[:200] or None,
+                currency=_str(args, "currency"),
+            )
+        except ValidationError:
+            return backend_tools._env(
+                "rejected",
+                "INVALID_INPUT",
+                hint="Los parametros enviados por la IA son invalidos. No se registro nada."
+            )
+
         kind = "expense" if name == "create_expense" else "income"
         return backend_tools._create(kind, body, db, user)
 

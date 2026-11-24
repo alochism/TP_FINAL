@@ -194,3 +194,282 @@ def test_tools_offer_only_existing_categories(db):
 
     assert "Alimentación" in expense_categories
     assert "Sueldo" not in expense_categories
+
+
+@pytest.mark.parametrize("route,category", [
+    ("/tools/expense", "Transporte"),
+    ("/tools/income", "Sueldo"),
+])
+@pytest.mark.parametrize("invalid_data,expected_code", [
+    ({"amount": 150.999}, "INVALID_AMOUNT"),
+    ({"amount": 10000000000000}, "INVALID_AMOUNT"),
+    ({"date": "2099-01-01"}, "INVALID_DATE"),
+])
+def test_tools_reject_invalid_movements(
+    client, db, create_user, create_account,
+    route, category, invalid_data, expected_code
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    data = {
+        "amount": 1000,
+        "account": "Efectivo",
+        "category": category,
+        "date": "2026-01-01",
+    }
+    data.update(invalid_data)
+
+    response = client.post(route, json=data, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+    assert response.json()["code"] == expected_code
+    assert db.query(Transaction).count() == 0
+
+
+@pytest.mark.parametrize(
+    "tool_name,category,invalid_data,expected_code",
+    [
+        (
+            "create_expense", "Transporte",
+            {"amount": 150.999}, "INVALID_AMOUNT"
+        ),
+        (
+            "create_income", "Sueldo",
+            {"date": "2099-01-01"}, "INVALID_DATE"
+        ),
+    ]
+)
+def test_chat_rejects_invalid_movement_without_saving(
+    client, db, create_user, create_account, fake_llm,
+    tool_name, category, invalid_data, expected_code
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    arguments = {
+        "amount": 1000,
+        "account": "Efectivo",
+        "category": category,
+        "date": "2026-01-01",
+    }
+    arguments.update(invalid_data)
+
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [tool_call(tool_name, arguments)]
+        },
+        {
+            "content": "No se registró el movimiento."
+        },
+    )
+
+    response = client.post(
+        "/chat",
+        json={"message": "Registrá este movimiento"},
+        headers=headers
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["actions"][0]["status"] == "rejected"
+    assert body["actions"][0]["code"] == expected_code
+    assert body["transaction_id"] is None
+    assert db.query(Transaction).count() == 0
+
+
+def test_chat_asks_category_for_ambiguous_expense(
+    client, db, create_user, create_account, fake_llm
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    # Simulamos que Gemini interpreta incorrectamente
+    # un gasto ambiguo como categoria Otros.
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [
+                tool_call("create_expense", {
+                    "amount": 3000,
+                    "account": "Efectivo",
+                    "category": "Otros",
+                    "description": "algo"
+                })
+            ]
+        },
+        {
+            "content": "¿En qué categoría querés registrar el gasto?"
+        }
+    )
+
+    response = client.post(
+        "/chat",
+        json={"message": "Gasté 3000 en algo con efectivo"},
+        headers=headers
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["transaction_id"] is None
+    assert body["actions"][0]["status"] == "needs_info"
+    assert body["actions"][0]["code"] == "CATEGORY_UNRESOLVED"
+    assert "category" in body["actions"][0]["missing_fields"]
+
+    # No debe registrarse ningun movimiento
+    assert db.query(Transaction).count() == 0
+
+
+@pytest.mark.parametrize("message,category", [
+    (
+        "Gasté 3000 en algo con efectivo, ponelo en Otros",
+        "Otros"
+    ),
+    (
+        "Gasté 3000 en supermercado con efectivo",
+        "Alimentación"
+    ),
+])
+def test_chat_allows_valid_expenses(
+    client, db, create_user, create_account,
+    fake_llm, message, category
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [
+                tool_call("create_expense", {
+                    "amount": 3000,
+                    "account": "Efectivo",
+                    "category": category,
+                    "description": "Compra"
+                })
+            ]
+        },
+        {
+            "content": "Gasto registrado correctamente."
+        }
+    )
+
+    response = client.post(
+        "/chat",
+        json={"message": message},
+        headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["actions"][0]["status"] == "ok"
+    assert response.json()["transaction_id"] is not None
+    assert db.query(Transaction).count() == 1
+
+
+def test_chat_completes_expense_after_category_clarification(
+    client, db, create_user, create_account, fake_llm
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    # Primer mensaje: gasto ambiguo
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [tool_call("create_expense", {
+                "amount": 3000,
+                "account": "Efectivo",
+                "category": "Otros",
+                "description": "algo"
+            })]
+        },
+        {
+            "content": "¿En qué categoría querés registrar el gasto?"
+        }
+    )
+
+    first = client.post(
+        "/chat",
+        json={"message": "Gasté 3000 en algo con efectivo"},
+        headers=headers
+    )
+
+    assert first.status_code == 200
+    assert first.json()["actions"][0]["status"] == "needs_info"
+    assert db.query(Transaction).count() == 0
+
+    # Segundo mensaje: el usuario confirma la categoría
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [tool_call("create_expense", {
+                "amount": 3000,
+                "account": "Efectivo",
+                "category": "Otros",
+                "description": "algo"
+            })]
+        },
+        {"content": "Gasto registrado correctamente."}
+    )
+
+    second = client.post(
+        "/chat",
+        json={
+            "message": "Ponelo en Otros",
+            "history": [
+                {
+                    "role": "user",
+                    "content": "Gasté 3000 en algo con efectivo"
+                },
+                {
+                    "role": "assistant",
+                    "content": first.json()["reply"]
+                }
+            ]
+        },
+        headers=headers
+    )
+
+    assert second.status_code == 200
+    assert second.json()["actions"][0]["status"] == "ok"
+    assert second.json()["transaction_id"] is not None
+    assert db.query(Transaction).count() == 1
+
+
+def test_chat_handles_invalid_tool_arguments(
+    client, db, create_user, create_account, fake_llm
+):
+    headers = create_user()
+    create_account(headers, name="Efectivo")
+
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [
+                tool_call("create_expense", {
+                    "amount": [1000],
+                    "account": "Efectivo",
+                    "category": "Transporte"
+                })
+            ]
+        },
+        {
+            "content": "No se pudo registrar el gasto."
+        }
+    )
+
+    response = client.post(
+        "/chat",
+        json={"message": "Registrá un gasto de 1000"},
+        headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["actions"][0]["status"] == "rejected"
+    assert response.json()["transaction_id"] is None
+    assert db.query(Transaction).count() == 0
