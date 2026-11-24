@@ -74,8 +74,40 @@ def _save_audit(db: Session, user: User, message: str, actions: list[dict],
     ))
     db.commit()
 
-def _category_needs_confirmation(message: str, category: str | None) -> bool:
+
+def _category_needs_confirmation(
+    message: str,
+    category: str | None,
+    *,
+    tool_name: str = "create_expense",
+    history: list[HistoryItem] | None = None,
+) -> bool:
+    # Los tipos inválidos se dejan para la validación de Pydantic.
+    if category is not None and not isinstance(category, str):
+        return False
+
     text = _norm(message)
+
+    # Si el usuario está respondiendo una aclaración, considerar
+    # también su mensaje anterior.
+    if (
+        tool_name == "create_income"
+        and history
+        and history[-1].role == "assistant"
+        and "?" in history[-1].content
+    ):
+        previous = next(
+            (item.content for item in reversed(history[:-1]) if item.role == "user"),
+            None,
+        )
+        if previous:
+            text = _norm(previous + " " + message)
+
+    # Si el usuario indicó expresamente la categoría, respetarla.
+    if category:
+        category_name = _norm(category)
+        if re.search(rf"\b{re.escape(category_name)}\b", text):
+            return False
 
     vague_reason = re.search(
         r"\b(?:en|por)\s+(?:(?:un|una|unos|unas)\s+)?"
@@ -83,16 +115,23 @@ def _category_needs_confirmation(message: str, category: str | None) -> bool:
         text,
     )
 
-    if not vague_reason:
+    if vague_reason:
+        return True
+
+    if tool_name != "create_income":
         return False
 
-    # Si el usuario indicó explícitamente la categoría, se respeta.
-    if category:
-        category_name = _norm(category)
-        if re.search(rf"\b{re.escape(category_name)}\b", text):
-            return False
+    # Para ingresos, exigir que el motivo justifique
+    # la categoría propuesta por Gemini.
+    income_sources = {
+        "sueldo": r"\b(?:sueldo|salario|aguinaldo)\b",
+        "honorarios": r"\b(?:honorarios?|factur(?:e|a|as|acion))\b",
+        "inversiones": r"\b(?:inversion(?:es)?|dividendos?|intereses)\b",
+    }
 
-    return True
+    pattern = income_sources.get(_norm(category)) if category else None
+    return not bool(pattern and re.search(pattern, text))
+
 
 @router.post("", response_model=ChatOut)
 def chat(
@@ -142,13 +181,16 @@ def chat(
                     effective_args = args
 
                     if (
-                        name == "create_expense"
+                        name in ("create_expense", "create_income")
                         and _category_needs_confirmation(
                             body.message,
-                            args.get("category")
+                            args.get("category"),
+                            tool_name=name,
+                            history=body.history,
                         )
                     ):
                         effective_args = {**args, "category": None}
+
 
                     result = agent_tools.execute(name, effective_args, db, user)
 

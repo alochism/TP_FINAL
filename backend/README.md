@@ -57,7 +57,7 @@ Documentación de la API:
 pytest
 ```
 
-Última ejecución verificada: **72 pruebas aprobadas**.
+Última ejecución verificada: **80 pruebas aprobadas**.
 
 ## Documentación
 

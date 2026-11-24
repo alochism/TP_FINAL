@@ -246,7 +246,13 @@ Las herramientas devuelven resultados estructurados:
 - `needs_info`: falta información o existe una ambigüedad.
 - `rejected`: la solicitud no cumple las reglas.
 
-El backend incorpora controles para determinadas expresiones ambiguas, aunque la interpretación semántica del modelo no es infalible.
+El backend incorpora controles para detectar determinadas solicitudes ambiguas, tanto en gastos como en ingresos.
+
+En particular, cuando un usuario informa un ingreso sin especificar su origen, el sistema solicita una aclaración antes de registrarlo, evitando que Gemini asigne automáticamente una categoría sin información suficiente.
+
+Por ejemplo, ante «Me entraron 50.000 en Mercado Pago», el asistente debe preguntar si corresponde a Sueldo, Honorarios, Inversiones u Otros.
+
+La protección contempla patrones conocidos y no garantiza detectar todas las interpretaciones incorrectas del modelo.
 
 ---
 
@@ -547,7 +553,7 @@ Las pruebas del backend comprueban:
 
 La última ejecución realizada después de las correcciones del backend finalizó con:
 
-**72 tests aprobados.**
+**80 tests aprobados.**
 
 Para ejecutar las pruebas:
 
@@ -690,7 +696,7 @@ Incluye:
 - Evaluación de lenguaje natural.
 - Configuración de despliegue en Render.
 
-La última ejecución de pruebas del backend registró **72 tests aprobados**.
+La última ejecución de pruebas del backend registró *80 tests aprobados**.
 
 El proyecto continúa en una etapa de revisión documental y refinamiento de la experiencia de usuario.
 

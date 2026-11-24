@@ -473,3 +473,86 @@ def test_chat_handles_invalid_tool_arguments(
     assert response.json()["actions"][0]["status"] == "rejected"
     assert response.json()["transaction_id"] is None
     assert db.query(Transaction).count() == 0
+
+
+def test_chat_completes_income_after_category_clarification(
+    client, db, create_user, create_account, fake_llm
+):
+    headers = create_user()
+    create_account(headers, name="Mercado Pago", type="WALLET")
+
+    income = {
+        "amount": 50000,
+        "account": "Mercado Pago",
+        "category": "Otros",
+    }
+
+    # Gemini propone Otros sin que el usuario indique el origen.
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [
+                tool_call("create_income", income)
+            ],
+        },
+        {
+            "content": "¿Qué categoría le ponemos a este ingreso?"
+        },
+    )
+
+    first = client.post(
+        "/chat",
+        json={"message": "Me entraron 50k en Mercado Pago"},
+        headers=headers,
+    )
+
+    assert first.status_code == 200
+
+    first_body = first.json()
+    assert first_body["actions"][0]["status"] == "needs_info"
+    assert first_body["actions"][0]["code"] == "CATEGORY_UNRESOLVED"
+    assert "category" in first_body["actions"][0]["missing_fields"]
+    assert first_body["transaction_id"] is None
+    assert db.query(Transaction).count() == 0
+
+    # El usuario elige explícitamente la categoría Otros.
+    fake_llm(
+        {
+            "content": None,
+            "tool_calls": [
+                tool_call("create_income", income)
+            ],
+        },
+        {
+            "content": "Ingreso registrado correctamente."
+        },
+    )
+
+    second = client.post(
+        "/chat",
+        json={
+            "message": "Otros",
+            "history": [
+                {
+                    "role": "user",
+                    "content": "Me entraron 50k en Mercado Pago",
+                },
+                {
+                    "role": "assistant",
+                    "content": first_body["reply"],
+                },
+            ],
+        },
+        headers=headers,
+    )
+
+    assert second.status_code == 200
+
+    second_body = second.json()
+    assert second_body["actions"][0]["status"] == "ok"
+    assert second_body["transaction_id"] is not None
+
+    transactions = db.query(Transaction).all()
+    assert len(transactions) == 1
+    assert transactions[0].type == "INCOME"
+    assert float(transactions[0].amount) == 50000

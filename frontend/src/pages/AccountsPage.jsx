@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiRequest } from '../api/client'
 import { ACCOUNT_TYPES, formatCurrency } from '../utils/format'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 // Obtiene las cuentas del usuario junto con el saldo de cada una y el saldo total.
 // Los saldos los calcula el backend a partir de los movimientos registrados
@@ -36,6 +37,8 @@ export function AccountsPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [accountToDeactivate, setAccountToDeactivate] = useState(null)
+  const [deactivating, setDeactivating] = useState(false)
 
   function showData(data) {
     setAccounts(data.accounts)
@@ -80,20 +83,26 @@ export function AccountsPage() {
 
   // Desactivacion logica: la cuenta deja de aparecer y no se puede usar,
   // pero sus movimientos se conservan. Se pide confirmacion siempre
-  async function handleDeactivate(account) {
-    const confirmed = window.confirm(
-      `¿Desactivar la cuenta "${account.name}"? No se podrá usar para registrar movimientos.`
-    )
+  async function handleDeactivate() {
+  if (!accountToDeactivate || deactivating) return
 
-    if (!confirmed) return
+  setDeactivating(true)
+  setError('')
 
-    try {
-      await apiRequest(`/accounts/${account.id}/deactivate`, { method: 'PATCH' })
-      showData(await fetchAccountsData())
-    } catch (err) {
-      setError(err.message)
-    }
+  try {
+    await apiRequest(`/accounts/${accountToDeactivate.id}/deactivate`, {
+      method: 'PATCH',
+    })
+
+    showData(await fetchAccountsData())
+    setAccountToDeactivate(null)
+  } catch (err) {
+    setError(err.message)
+    setAccountToDeactivate(null)
+  } finally {
+    setDeactivating(false)
   }
+}
 
   return (
     <section>
@@ -130,7 +139,7 @@ export function AccountsPage() {
                 <td className="amount">{formatCurrency(account.initial_balance)}</td>
                 <td className="amount">{formatCurrency(account.balance)}</td>
                 <td>
-                  <button type="button" className="button-secondary button-small" onClick={() => handleDeactivate(account)}>
+                  <button type="button" className="button-secondary button-small" onClick={() => setAccountToDeactivate(account)}>
                     Desactivar
                   </button>
                 </td>
@@ -184,6 +193,19 @@ export function AccountsPage() {
           {saving ? 'Guardando...' : 'Crear cuenta'}
         </button>
       </form>
+      <ConfirmDialog
+        open={Boolean(accountToDeactivate)}
+        title="Desactivar cuenta"
+        message={
+          `¿Querés desactivar la cuenta "${accountToDeactivate?.name}"? ` +
+          'No podrás registrar nuevos movimientos y su saldo dejará de incluirse ' +
+          'en el total. Los movimientos anteriores se conservarán.'
+        }
+        confirmLabel="Desactivar cuenta"
+        busy={deactivating}
+        onConfirm={handleDeactivate}
+        onCancel={() => setAccountToDeactivate(null)}
+      />
     </section>
   )
 }
