@@ -167,6 +167,10 @@ Si el usuario menciona explícitamente otra moneda, el backend devuelve `UNSUPPO
 
 Si falta la cuenta o no se puede resolver la categoría, devuelve `needs_info` sin registrar el gasto.
 
+Cuando el usuario informa un ingreso sin identificar su origen, el backend solicita una aclaración antes de registrarlo. Esto evita que Gemini asigne automáticamente una categoría, como `Otros`, sin información suficiente.
+
+Si el usuario indica explícitamente la categoría o proporciona un concepto reconocido, como sueldo, honorarios o inversiones, el sistema puede registrar el ingreso sin solicitar esa aclaración adicional.
+
 ### Resultado correcto
 
 ```json
@@ -510,6 +514,24 @@ Si el usuario responde:
 La operación puede completarse utilizando la categoría indicada.
 
 Esta protección contempla patrones de ambigüedad conocidos; no garantiza detectar todas las interpretaciones semánticas incorrectas que pueda generar el modelo.
+
+### Ingresos con categoría no identificada
+
+El backend también controla determinadas ambigüedades en los ingresos.
+
+Por ejemplo:
+
+> Me entraron 50.000 en Mercado Pago.
+
+Aunque Gemini proponga `Otros`, el backend solicita que el usuario indique la categoría antes de guardar el movimiento.
+
+El asistente puede responder:
+
+> ¿Qué categoría le ponemos a este ingreso? Podés elegir entre Sueldo, Honorarios, Inversiones u Otros.
+
+Cuando el usuario responde, por ejemplo, «Otros», el sistema utiliza el historial conversacional para completar la operación.
+
+Esta validación utiliza patrones de reconocimiento de categorías y prioriza solicitar una aclaración cuando el origen del ingreso no está suficientemente identificado.
 
 ---
 

@@ -210,7 +210,11 @@ Las operaciones conversacionales disponibles son:
 
 El asistente puede solicitar aclaraciones cuando faltan datos necesarios para realizar una operación.
 
-El backend también incorpora controles para determinadas expresiones ambiguas y rechaza parámetros que no cumplen las validaciones.
+El backend incorpora controles para detectar determinadas solicitudes ambiguas, tanto en gastos como en ingresos.
+
+Cuando el usuario informa un ingreso sin identificar su origen, el sistema solicita una aclaración antes de registrarlo. Por ejemplo, ante «Me entraron 50.000 en Mercado Pago», debe preguntar la categoría correspondiente en lugar de asignar automáticamente `Otros`.
+
+También rechaza parámetros inválidos y evita ejecutar operaciones financieras cuando falta información necesaria.
 
 El modelo de lenguaje no accede directamente a PostgreSQL ni ejecuta reglas financieras por su cuenta.
 
@@ -357,7 +361,7 @@ Se utiliza `pytest` para comprobar:
 - Validación de parámetros de herramientas.
 - Manejo de errores y solicitudes ambiguas.
 
-La última ejecución realizada después de las correcciones del backend finalizó con **72 pruebas aprobadas**.
+La última ejecución realizada después de las correcciones del backend finalizó con **80 pruebas aprobadas**.
 
 Estas pruebas utilizan un entorno controlado y, cuando corresponde, respuestas simuladas del proveedor de IA.
 
