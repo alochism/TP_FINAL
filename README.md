@@ -698,11 +698,12 @@ El proyecto continúa en una etapa de revisión documental y refinamiento de la 
 
 ## Equipo
 
-- Aguilar.
-- Alochis.
-- Zupan.
+**Integrantes:**
+- Joel Andrés Gonzalo Aguilar
+- Matías José Alochis
+- Lucas Esteban Zupan
 
-**Tutor:** Oscar Londero.
+**Tutor:** Oscar Londero
 
 ### Experiencia previa del equipo
 
@@ -728,6 +729,10 @@ Esta evaluación contribuyó a definir un alcance técnico realizable. Durante e
 
 ---
 
-## Licencia
+## Derechos de autor
 
-A definir.
+Copyright © 2026 Joel Andrés Gonzalo Aguilar, Matías José Alochis y Lucas Esteban Zupan.
+
+**Todos los derechos reservados.**
+
+Este proyecto fue desarrollado con fines académicos. No se concede autorización general para copiar, modificar, redistribuir o comercializar su código sin el consentimiento de sus autores, salvo los usos permitidos por la legislación aplicable y los términos de GitHub.
