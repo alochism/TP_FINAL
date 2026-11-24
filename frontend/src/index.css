@@ -438,3 +438,35 @@ button:disabled {
 .table tr.voided td:last-child {
   text-decoration: none;
 }
+
+/* Modal de confirmación */
+.confirm-dialog {
+  width: min(420px, calc(100% - 2rem));
+  max-width: none;
+  padding: 1.5rem;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(15, 30, 50, 0.55);
+}
+
+.confirm-dialog h2 {
+  margin-bottom: 0.75rem;
+}
+
+.confirm-dialog p {
+  margin: 0 0 1.5rem;
+  color: var(--text-muted);
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
