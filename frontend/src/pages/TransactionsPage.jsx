@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiRequest } from '../api/client'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import {
   formatCurrency,
   formatDate,
@@ -54,6 +55,8 @@ export function TransactionsPage() {
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
   const [saving, setSaving] = useState(false)
+  const [transactionToVoid, setTransactionToVoid] = useState(null)  
+  const [voiding, setVoiding] = useState(false)
 
   // Cuentas y categorias se cargan una sola vez: se usan en el formulario,
   // en los filtros y para mostrar nombres en lugar de identificadores
@@ -76,21 +79,34 @@ export function TransactionsPage() {
 
   // Anulacion logica: el movimiento se conserva y deja de contar en los saldos.
   // Al ser una operacion destructiva se pide confirmacion siempre
-  async function handleVoid(transaction) {
-    const confirmed = window.confirm(
-      `¿Anular el movimiento de ${formatCurrency(transaction.amount)} del ${formatDate(transaction.date)}? ` +
-        'Dejará de contar en los saldos.'
-    )
+  
+  async function handleVoid() {
+    if (!transactionToVoid || voiding) return
 
-    if (!confirmed) return
+    setVoiding(true)
+    setError('')
 
     try {
-      const updated = await apiRequest(`/transactions/${transaction.id}/void`, { method: 'PATCH' })
-      setTransactions((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      const updated = await apiRequest(
+        `/transactions/${transactionToVoid.id}/void`,
+        { method: 'PATCH' }
+      )
+
+      setTransactions((current) =>
+        current.map((item) =>
+          item.id === updated.id ? updated : item
+        )
+      )
+
+      setTransactionToVoid(null)
     } catch (err) {
       setError(err.message)
+      setTransactionToVoid(null)
+    } finally {
+      setVoiding(false)
     }
   }
+
 
   function getAccountName(accountId) {
     const account = accounts.find((item) => item.id === accountId)
@@ -329,7 +345,7 @@ export function TransactionsPage() {
                   {transaction.status === 'VOIDED' ? (
                     'Anulado'
                   ) : (
-                    <button type="button" className="button-secondary button-small" onClick={() => handleVoid(transaction)}>
+                    <button type="button" className="button-secondary button-small" onClick={() => setTransactionToVoid(transaction)}>
                       Anular
                     </button>
                   )}
@@ -339,6 +355,21 @@ export function TransactionsPage() {
           </tbody>
         </table>
       )}
+      <ConfirmDialog
+        open={Boolean(transactionToVoid)}
+        title="Anular movimiento"
+        message={
+          transactionToVoid
+            ? `¿Querés anular el movimiento de ${formatCurrency(transactionToVoid.amount)} ` +
+              `del ${formatDate(transactionToVoid.date)}? ` +
+              'Dejará de contar en los saldos, pero se conservará en el historial.'
+            : ''
+        }
+        confirmLabel="Anular movimiento"
+        busy={voiding}
+        onConfirm={handleVoid}
+        onCancel={() => setTransactionToVoid(null)}
+      />
     </section>
   )
 }

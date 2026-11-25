@@ -45,10 +45,18 @@ export function ChatPage() {
         ...current,
         { role: 'assistant', content: data.reply, registered: data.transaction_id !== null },
       ])
+    
     } catch (err) {
       setMessages((current) => [
         ...current,
-        { role: 'assistant', content: `${err.message}. No se registró nada.`, error: true },
+        {
+          role: 'assistant',
+          content:
+            'No pude confirmar el resultado de la operación. ' +
+            'Revisá la sección Movimientos antes de intentar nuevamente, ' +
+            'para evitar registros duplicados.',
+          error: true,
+        },
       ])
     } finally {
       setSending(false)

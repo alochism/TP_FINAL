@@ -5,6 +5,11 @@ from app.database import get_db
 from app.models import Account, Category, Transaction, User
 from app.schemas.transaction import TransactionCreate, TransactionResponse
 from app.security import get_current_user
+from app.services.transaction_validation import (
+    TransactionValidationError,
+    validate_amount,
+    validate_date,
+)
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -25,11 +30,14 @@ def create_expense(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)]
 ):
-    if transaction_data.amount <= 0:
+    try:
+        amount = validate_amount(transaction_data.amount)
+        movement_date = validate_date(transaction_data.date)
+    except TransactionValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El monto debe ser mayor a cero"
-        )
+            detail=exc.message
+        ) from exc
 
     account = db.get(Account, transaction_data.account_id)
 
@@ -55,8 +63,8 @@ def create_expense(
         account_id=account.id,
         category_id=category.id,
         type="EXPENSE",
-        amount=transaction_data.amount,
-        date=transaction_data.date,
+        amount=amount,
+        date=movement_date,
         description=transaction_data.description,
         status="ACTIVE"
     )
@@ -78,11 +86,14 @@ def create_income(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)]
 ):
-    if transaction_data.amount <= 0:
+    try:
+        amount = validate_amount(transaction_data.amount)
+        movement_date = validate_date(transaction_data.date)
+    except TransactionValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El monto debe ser mayor a cero"
-        )
+            detail=exc.message
+        ) from exc
 
     account = db.get(Account, transaction_data.account_id)
 
@@ -108,8 +119,8 @@ def create_income(
         account_id=account.id,
         category_id=category.id,
         type="INCOME",
-        amount=transaction_data.amount,
-        date=transaction_data.date,
+        amount=amount,
+        date=movement_date,
         description=transaction_data.description,
         status="ACTIVE"
     )

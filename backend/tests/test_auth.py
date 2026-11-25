@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_register_user(client):
     response = client.post(
         "/auth/register",
@@ -48,3 +51,21 @@ def test_protected_endpoint_with_invalid_token_is_rejected(client):
     )
 
     assert response.status_code == 401
+
+@pytest.mark.parametrize("password", [
+    "",
+    "abc",
+    "1234567",
+    "a" * 73,
+    "á" * 37,
+])
+def test_register_rejects_invalid_password(client, password):
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "prueba@correo.com",
+            "password": password
+        }
+    )
+
+    assert response.status_code == 422

@@ -157,3 +157,121 @@ def test_cannot_void_transaction_of_another_user(client, create_user, create_acc
     response = client.patch(f"/transactions/{created['id']}/void", headers=headers)
 
     assert response.status_code == 404
+
+
+def test_reject_amount_with_more_than_two_decimals(
+    client, create_user, create_account, category_id
+):
+    headers = create_user()
+    account = create_account(headers)
+
+    response = client.post(
+        "/transactions/expense",
+        json=expense_data(
+            account["id"],
+            category_id("Transporte", "EXPENSE"),
+            amount=150.999
+        ),
+        headers=headers
+    )
+
+    assert response.status_code == 400
+
+
+def test_reject_future_date(
+    client, create_user, create_account, category_id
+):
+    headers = create_user()
+    account = create_account(headers)
+
+    data = expense_data(
+        account["id"],
+        category_id("Transporte", "EXPENSE")
+    )
+    data["date"] = "2099-01-01"
+
+    response = client.post(
+        "/transactions/expense",
+        json=data,
+        headers=headers
+    )
+
+    assert response.status_code == 400
+
+
+def test_reject_amount_above_database_limit(
+    client, create_user, create_account, category_id
+):
+    headers = create_user()
+    account = create_account(headers)
+
+    response = client.post(
+        "/transactions/expense",
+        json=expense_data(
+            account["id"],
+            category_id("Transporte", "EXPENSE"),
+            amount=10000000000000
+        ),
+        headers=headers
+    )
+
+    assert response.status_code == 400
+
+
+def test_income_rejects_more_than_two_decimals(
+    client, create_user, create_account, category_id
+):
+    headers = create_user()
+    account = create_account(headers)
+
+    response = client.post(
+        "/transactions/income",
+        json=expense_data(
+            account["id"],
+            category_id("Sueldo", "INCOME"),
+            amount=150.999
+        ),
+        headers=headers
+    )
+
+    assert response.status_code == 400
+
+
+def test_income_rejects_future_date(
+    client, create_user, create_account, category_id
+):
+    headers = create_user()
+    account = create_account(headers)
+
+    data = expense_data(
+        account["id"],
+        category_id("Sueldo", "INCOME")
+    )
+    data["date"] = "2099-01-01"
+
+    response = client.post(
+        "/transactions/income",
+        json=data,
+        headers=headers
+    )
+
+    assert response.status_code == 400
+
+
+def test_income_rejects_amount_above_limit(
+    client, create_user, create_account, category_id
+):
+    headers = create_user()
+    account = create_account(headers)
+
+    response = client.post(
+        "/transactions/income",
+        json=expense_data(
+            account["id"],
+            category_id("Sueldo", "INCOME"),
+            amount=10000000000000
+        ),
+        headers=headers
+    )
+
+    assert response.status_code == 400

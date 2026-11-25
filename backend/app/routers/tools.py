@@ -9,7 +9,7 @@
 """
 import datetime as dt
 import unicodedata
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Annotated
 from zoneinfo import ZoneInfo
 
@@ -19,6 +19,11 @@ from app.routers import accounts as accounts_routes
 from app.routers import transactions as tx_routes
 from app.schemas.transaction import TransactionCreate
 from app.security import get_current_user
+from app.services.transaction_validation import (
+    TransactionValidationError,
+    validate_amount,
+    validate_date,
+)
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -132,23 +137,18 @@ def _create(kind: str, body: MovementIn, db: Session, user: User):
     amount = None
     if body.amount is not None:
         try:
-            amount = Decimal(str(body.amount))
-        except InvalidOperation:
-            amount = Decimal(0)  # fuerza INVALID_AMOUNT
-        if not amount.is_finite() or amount <= 0 or amount.as_tuple().exponent < -2:
-            return _env(
-                "rejected", "INVALID_AMOUNT",
-                hint="El monto debe ser un numero mayor a cero, con hasta 2 decimales.",
-            )
+            amount = validate_amount(body.amount)
+        except TransactionValidationError as exc:
+            return _env("rejected", exc.code, hint=exc.message)
 
     tx_date = None
     if body.date:
         try:
-            tx_date = _parse_date(body.date)
+            tx_date = validate_date(_parse_date(body.date))
+        except TransactionValidationError as exc:
+            return _env("rejected", exc.code, hint=exc.message)
         except ValueError:
             return _invalid_date()
-        if tx_date > _today():
-            return _env("rejected", "INVALID_DATE", hint="No se pueden registrar movimientos con fecha futura.")
 
     # 2) Datos requeridos faltantes o ambiguos: no se ejecuta nada, se pregunta
     accounts = _accounts(db, user)

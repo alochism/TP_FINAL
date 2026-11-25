@@ -1,6 +1,8 @@
+
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { PasswordInput } from '../components/PasswordInput'
 import { useAuth } from '../context/authContext'
 
 export function LoginPage() {
@@ -47,16 +49,17 @@ export function LoginPage() {
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            autoComplete="email"
             required
           />
         </label>
 
         <label>
           Contraseña
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
             required
           />
         </label>
