@@ -608,6 +608,10 @@ Los enlaces documentados son:
 
 El despliegue utiliza la API directa de Gemini y no necesita ejecutar OpenClaw.
 
+### Acceso a la aplicación
+
+Para probar la aplicación, crear un usuario desde la pantalla de registro. No se publican credenciales de prueba: cada evaluador puede registrarse con un correo propio o ficticio y crear sus cuentas desde la sección Cuentas.
+
 ### Consideraciones del plan gratuito
 
 El backend puede suspenderse después de un período de inactividad, por lo que la primera solicitud puede presentar una demora adicional.
