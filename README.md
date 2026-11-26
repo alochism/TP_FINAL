@@ -673,7 +673,12 @@ El listado completo de módulos se encuentra en [docs/modulos.md](docs/modulos.m
 | [Validación con usuarios](docs/validacion-usuarios.md) | Encuesta y análisis de resultados |
 | [Evaluación conversacional](docs/evaluacion-nl.md) | Pruebas de lenguaje natural y resultados |
 
-El informe académico final se entregará como documento PDF independiente.
+### Entregables finales
+
+- **Informe académico:** [Trabajo Final Integrador (PDF)](docs/Trabajo_Final_Integrador.pdf)
+- **Video de presentación y demostración:** [Ver presentación](https://drive.google.com/file/d/1-g2Z8tXoowVqgfJCgcfx0tY2z9P_emEx/view?usp=drive_link)
+
+El informe describe el desarrollo, la arquitectura, las funcionalidades, las pruebas y los resultados del proyecto. El video complementa esta documentación mediante una presentación y demostración del sistema.
 
 ---
 
